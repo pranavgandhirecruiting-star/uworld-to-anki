@@ -1,12 +1,111 @@
-import { useState } from "react";
-import type { QuestionExplanation } from "../api/claude";
+import { useState, useCallback } from "react";
+import type { QuestionExplanation, GlossaryTerm } from "../api/claude";
 
 interface Props {
   explanation: QuestionExplanation;
 }
 
+/**
+ * Replace glossary terms in text with hoverable spans.
+ * Uses case-insensitive matching, longest-match-first to avoid
+ * partial matches (e.g., "fat necrosis" before "necrosis").
+ */
+function HighlightedText({
+  text,
+  glossary,
+  onHover,
+}: {
+  text: string;
+  glossary: GlossaryTerm[];
+  onHover: (term: GlossaryTerm | null, rect: DOMRect | null) => void;
+}) {
+  if (!glossary.length) return <>{text}</>;
+
+  // Sort by length descending so longer terms match first
+  const sorted = [...glossary].sort((a, b) => b.term.length - a.term.length);
+
+  // Build regex that matches any glossary term (case-insensitive, word boundary)
+  const pattern = sorted
+    .map((g) => g.term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|");
+  const regex = new RegExp(`(${pattern})`, "gi");
+
+  const parts = text.split(regex);
+
+  return (
+    <>
+      {parts.map((part, i) => {
+        const match = sorted.find(
+          (g) => g.term.toLowerCase() === part.toLowerCase()
+        );
+        if (match) {
+          return (
+            <span
+              key={i}
+              className="glossary-term"
+              onMouseEnter={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                onHover(match, rect);
+              }}
+              onMouseLeave={() => onHover(null, null)}
+            >
+              {part}
+            </span>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+}
+
+function Tooltip({
+  term,
+  rect,
+}: {
+  term: GlossaryTerm;
+  rect: DOMRect;
+}) {
+  // Position tooltip below the term
+  const style: React.CSSProperties = {
+    position: "fixed",
+    left: Math.min(rect.left, window.innerWidth - 320),
+    top: rect.bottom + 6,
+    zIndex: 1000,
+  };
+
+  // If tooltip would go off bottom of screen, show above
+  if (rect.bottom + 120 > window.innerHeight) {
+    style.top = rect.top - 6;
+    style.transform = "translateY(-100%)";
+  }
+
+  return (
+    <div className="glossary-tooltip" style={style}>
+      <div className="glossary-tooltip-term">{term.term}</div>
+      <div className="glossary-tooltip-def">{term.definition}</div>
+    </div>
+  );
+}
+
 export function ExplanationPanel({ explanation }: Props) {
   const [collapsed, setCollapsed] = useState(false);
+  const [hoveredTerm, setHoveredTerm] = useState<GlossaryTerm | null>(null);
+  const [hoveredRect, setHoveredRect] = useState<DOMRect | null>(null);
+
+  const glossary = explanation.glossary || [];
+
+  const handleHover = useCallback(
+    (term: GlossaryTerm | null, rect: DOMRect | null) => {
+      setHoveredTerm(term);
+      setHoveredRect(rect);
+    },
+    []
+  );
+
+  const H = ({ text }: { text: string }) => (
+    <HighlightedText text={text} glossary={glossary} onHover={handleHover} />
+  );
 
   return (
     <div className="explanation-panel">
@@ -24,17 +123,23 @@ export function ExplanationPanel({ explanation }: Props) {
         <div className="explanation-body">
           <div className="explanation-answer">
             <span className="explanation-label">Answer</span>
-            <span className="explanation-answer-text">{explanation.answer}</span>
+            <span className="explanation-answer-text">
+              <H text={explanation.answer} />
+            </span>
           </div>
 
           <div className="explanation-section">
             <span className="explanation-label">Reasoning</span>
-            <p>{explanation.reasoning}</p>
+            <p>
+              <H text={explanation.reasoning} />
+            </p>
           </div>
 
           <div className="explanation-section explanation-concept">
             <span className="explanation-label">Tested Concept</span>
-            <p>{explanation.testedConcept}</p>
+            <p>
+              <H text={explanation.testedConcept} />
+            </p>
           </div>
 
           {explanation.trapAnswers.length > 0 && (
@@ -43,8 +148,12 @@ export function ExplanationPanel({ explanation }: Props) {
               <div className="trap-list">
                 {explanation.trapAnswers.map((trap, i) => (
                   <div key={i} className="trap-item">
-                    <span className="trap-answer">{trap.answer}</span>
-                    <span className="trap-why">{trap.whyWrong}</span>
+                    <span className="trap-answer">
+                      <H text={trap.answer} />
+                    </span>
+                    <span className="trap-why">
+                      <H text={trap.whyWrong} />
+                    </span>
                   </div>
                 ))}
               </div>
@@ -56,12 +165,24 @@ export function ExplanationPanel({ explanation }: Props) {
               <span className="explanation-label">High-Yield Associations</span>
               <ul className="high-yield-list">
                 {explanation.highYield.map((fact, i) => (
-                  <li key={i}>{fact}</li>
+                  <li key={i}>
+                    <H text={fact} />
+                  </li>
                 ))}
               </ul>
             </div>
           )}
+
+          {glossary.length > 0 && (
+            <div className="glossary-hint">
+              Hover over <span className="glossary-term-example">highlighted terms</span> for definitions
+            </div>
+          )}
         </div>
+      )}
+
+      {hoveredTerm && hoveredRect && (
+        <Tooltip term={hoveredTerm} rect={hoveredRect} />
       )}
     </div>
   );

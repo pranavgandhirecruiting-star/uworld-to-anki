@@ -906,3 +906,50 @@
   color: var(--text-h);
   line-height: 1.4;
 }
+
+/* ── Glossary Hover Terms ── */
+.glossary-term {
+  border-bottom: 2px dotted var(--accent);
+  cursor: help;
+  transition: background 0.15s;
+}
+
+.glossary-term:hover {
+  background: var(--accent-bg);
+}
+
+.glossary-term-example {
+  border-bottom: 2px dotted var(--accent);
+  color: var(--accent);
+}
+
+.glossary-hint {
+  font-size: 0.75rem;
+  color: var(--text);
+  text-align: center;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.glossary-tooltip {
+  max-width: 300px;
+  padding: 10px 14px;
+  background: var(--bg);
+  border: 1px solid var(--accent-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+}
+
+.glossary-tooltip-term {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.glossary-tooltip-def {
+  font-size: 0.8rem;
+  color: var(--text-h);
+  line-height: 1.4;
+}

@@ -119,12 +119,18 @@ function parseJsonArray(text: string): string[] {
   return [];
 }
 
+export interface GlossaryTerm {
+  term: string;
+  definition: string;
+}
+
 export interface QuestionExplanation {
   answer: string;
   reasoning: string;
   testedConcept: string;
   trapAnswers: { answer: string; whyWrong: string }[];
   highYield: string[];
+  glossary: GlossaryTerm[];
 }
 
 export async function explainQuestion(questionText: string): Promise<QuestionExplanation> {
@@ -145,7 +151,7 @@ export async function explainQuestion(questionText: string): Promise<QuestionExp
     },
     body: JSON.stringify({
       model,
-      max_tokens: 1500,
+      max_tokens: 2500,
       system: `You are a medical education expert tutoring a student who missed a board-style exam question. Analyze the question and provide a structured explanation.
 
 Return ONLY a JSON object with these fields:
@@ -154,6 +160,7 @@ Return ONLY a JSON object with these fields:
 - "testedConcept": one sentence stating the core concept being tested and why it's high-yield
 - "trapAnswers": array of 2-4 objects, each with "answer" (the wrong choice) and "whyWrong" (1 sentence why students pick it and why it's wrong)
 - "highYield": array of 3-5 short strings with related facts the student should memorize
+- "glossary": array of 8-15 objects, each with "term" (a medical term that appears in your reasoning, testedConcept, trapAnswers, or highYield text) and "definition" (a concise 1-2 sentence definition a medical student would need). Include terms for diseases, pathophysiology concepts, histological findings, lab values, anatomical structures, and clinical signs mentioned anywhere in your response.
 
 IMPORTANT: Return ONLY the JSON object, no markdown fences, no other text.`,
       messages: [{ role: "user", content: questionText }],
