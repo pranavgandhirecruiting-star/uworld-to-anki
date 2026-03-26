@@ -290,7 +290,7 @@ export function Results({ results, onUnsuspended, onUnsuspendedAll }: Props) {
             >
               {unsuspendingAll
                 ? "Unsuspending..."
-                : `Unsuspend All ${totalSuspended} Cards`}
+                : `Activate ${totalSuspended} Suspended Cards for Review`}
             </button>
           )}
           {totalActive > 0 && (
@@ -301,7 +301,7 @@ export function Results({ results, onUnsuspended, onUnsuspendedAll }: Props) {
             >
               {suspendingAll
                 ? "Suspending..."
-                : `Suspend All ${totalActive} Cards`}
+                : `Re-suspend ${totalActive} Already Active Cards`}
             </button>
           )}
         </div>

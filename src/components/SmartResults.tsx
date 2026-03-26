@@ -159,12 +159,12 @@ export function SmartResults({ results }: Props) {
         <div className="summary-actions">
           {suspendedResults.length > 0 && (
             <button className="btn btn-primary" onClick={handleUnsuspendAll} disabled={busy}>
-              {busy ? "..." : `Unsuspend All ${suspendedResults.length} Cards`}
+              {busy ? "..." : `Activate ${suspendedResults.length} Suspended Cards for Review`}
             </button>
           )}
           {activeResults.length > 0 && (
             <button className="btn btn-danger" onClick={handleSuspendAll} disabled={busy}>
-              {busy ? "..." : `Suspend All ${activeResults.length} Cards`}
+              {busy ? "..." : `Re-suspend ${activeResults.length} Already Active Cards`}
             </button>
           )}
         </div>

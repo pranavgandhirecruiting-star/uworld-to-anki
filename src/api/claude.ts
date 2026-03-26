@@ -119,6 +119,68 @@ function parseJsonArray(text: string): string[] {
   return [];
 }
 
+export interface QuestionExplanation {
+  answer: string;
+  reasoning: string;
+  testedConcept: string;
+  trapAnswers: { answer: string; whyWrong: string }[];
+  highYield: string[];
+}
+
+export async function explainQuestion(questionText: string): Promise<QuestionExplanation> {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error("Anthropic API key not set.");
+  }
+
+  const model = getModel();
+
+  const response = await fetch(ANTHROPIC_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 1500,
+      system: `You are a medical education expert tutoring a student who missed a board-style exam question. Analyze the question and provide a structured explanation.
+
+Return ONLY a JSON object with these fields:
+- "answer": the correct answer/diagnosis in one phrase (e.g., "Acute pancreatitis causing fat necrosis")
+- "reasoning": 2-3 sentences explaining the clinical reasoning chain from the vignette to the answer
+- "testedConcept": one sentence stating the core concept being tested and why it's high-yield
+- "trapAnswers": array of 2-4 objects, each with "answer" (the wrong choice) and "whyWrong" (1 sentence why students pick it and why it's wrong)
+- "highYield": array of 3-5 short strings with related facts the student should memorize
+
+IMPORTANT: Return ONLY the JSON object, no markdown fences, no other text.`,
+      messages: [{ role: "user", content: questionText }],
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(
+      (err as { error?: { message?: string } })?.error?.message ||
+        `API error: ${response.status}`
+    );
+  }
+
+  const data = await response.json();
+  const text = data.content?.[0]?.text || "{}";
+
+  // Extract JSON object from response
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start === -1 || end <= start) {
+    throw new Error("Could not parse explanation from Claude");
+  }
+
+  return JSON.parse(text.slice(start, end + 1));
+}
+
 export interface CardCandidate {
   cardId: number;
   text: string;

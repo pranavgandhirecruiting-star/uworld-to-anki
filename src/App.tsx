@@ -5,9 +5,11 @@ import { QIDInput } from "./components/QIDInput";
 import { SmartSearch, type SmartSearchResult } from "./components/SmartSearch";
 import { Results } from "./components/Results";
 import { SmartResults } from "./components/SmartResults";
+import { ExplanationPanel } from "./components/ExplanationPanel";
 import { SessionHistory } from "./components/SessionHistory";
 import { Settings } from "./components/Settings";
 import { lookupQIDs, type QIDResult } from "./api/ankiConnect";
+import { type QuestionExplanation } from "./api/claude";
 import { saveSession } from "./utils/sessionHistory";
 import "./App.css";
 
@@ -24,12 +26,14 @@ function App() {
   const [historyKey, setHistoryKey] = useState(0);
   const [inputOverride, setInputOverride] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [explanation, setExplanation] = useState<QuestionExplanation | null>(null);
 
   const handleQIDSubmit = useCallback(async (qids: string[]) => {
     setLoading(true);
     setError(null);
     setResults(null);
     setSmartResults(null);
+    setExplanation(null);
     setLastQIDs(qids);
 
     try {
@@ -52,8 +56,9 @@ function App() {
     setLoading(false);
   }, []);
 
-  const handleSmartResults = useCallback((results: SmartSearchResult[]) => {
+  const handleSmartResults = useCallback((results: SmartSearchResult[], exp: QuestionExplanation | null) => {
     setSmartResults(results);
+    setExplanation(exp);
     setResults(null);
   }, []);
 
@@ -69,6 +74,7 @@ function App() {
     setMode(newMode);
     setResults(null);
     setSmartResults(null);
+    setExplanation(null);
     setError(null);
   };
 
@@ -167,6 +173,8 @@ function App() {
             onUnsuspendedAll={() => {}}
           />
         )}
+
+        {explanation && <ExplanationPanel explanation={explanation} />}
 
         {smartResults && <SmartResults results={smartResults} />}
 

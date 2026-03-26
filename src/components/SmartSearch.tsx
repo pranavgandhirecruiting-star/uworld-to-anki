@@ -3,8 +3,9 @@ import { searchCards, getCardInfo, type CardInfo } from "../api/ankiConnect";
 import {
   extractMedicalConcepts,
   matchCardsToQuestion,
+  explainQuestion,
   getApiKey,
-  type MatchResult,
+  type QuestionExplanation,
 } from "../api/claude";
 
 export interface SmartSearchResult {
@@ -15,7 +16,7 @@ export interface SmartSearchResult {
 }
 
 interface Props {
-  onResults: (results: SmartSearchResult[]) => void;
+  onResults: (results: SmartSearchResult[], explanation: QuestionExplanation | null) => void;
   loading: boolean;
   setLoading: (loading: boolean) => void;
   disabled: boolean;
@@ -90,24 +91,35 @@ export function SmartSearch({
         return;
       }
 
-      // Step 3: Send candidates to Claude for semantic ranking
+      // Step 3: Run card matching AND question explanation in parallel
       setStatus(
-        `Found ${candidates.length} candidate cards. Ranking with Claude...`
+        `Found ${candidates.length} candidate cards. Analyzing with Claude...`
       );
 
-      const matches: MatchResult[] = await matchCardsToQuestion(
-        input,
-        candidates.map((c) => ({
-          cardId: c.cardId,
-          text: c.text,
-          tags: c.tags,
-        }))
-      );
+      const [matches, explanation] = await Promise.all([
+        matchCardsToQuestion(
+          input,
+          candidates.map((c) => ({
+            cardId: c.cardId,
+            text: c.text,
+            tags: c.tags,
+          }))
+        ),
+        explainQuestion(input).catch((err) => {
+          console.error("Explanation failed:", err);
+          return null;
+        }),
+      ]);
 
       if (matches.length === 0) {
-        onError(
-          "Claude didn't find any strongly relevant cards among the candidates. The topic may not be well-covered in your deck."
-        );
+        // Even if no cards matched, we might still have an explanation
+        if (explanation) {
+          onResults([], explanation);
+        } else {
+          onError(
+            "Claude didn't find any strongly relevant cards among the candidates. The topic may not be well-covered in your deck."
+          );
+        }
         setLoading(false);
         return;
       }
@@ -128,7 +140,7 @@ export function SmartSearch({
         }));
 
       setStatus("");
-      onResults(results);
+      onResults(results, explanation);
     } catch (err) {
       onError(err instanceof Error ? err.message : "Smart search failed");
     }
