@@ -1,43 +1,11 @@
 import { useState } from "react";
 import { searchCards, getCardInfo, type CardInfo } from "../api/ankiConnect";
 import {
+  extractMedicalConcepts,
   matchCardsToQuestion,
   getApiKey,
   type MatchResult,
 } from "../api/claude";
-
-// Medical stopwords to filter out when building search queries
-const STOPWORDS = new Set([
-  "a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
-  "have", "has", "had", "do", "does", "did", "will", "would", "could",
-  "should", "may", "might", "shall", "can", "need", "dare", "ought",
-  "used", "to", "of", "in", "for", "on", "with", "at", "by", "from",
-  "as", "into", "through", "during", "before", "after", "above", "below",
-  "between", "out", "off", "over", "under", "again", "further", "then",
-  "once", "here", "there", "when", "where", "why", "how", "all", "each",
-  "every", "both", "few", "more", "most", "other", "some", "such", "no",
-  "nor", "not", "only", "own", "same", "so", "than", "too", "very",
-  "just", "because", "but", "and", "or", "if", "while", "that", "this",
-  "these", "those", "what", "which", "who", "whom", "its", "his", "her",
-  "their", "my", "your", "our", "he", "she", "it", "they", "we", "you",
-  "me", "him", "them", "us", "i", "patient", "presents", "year", "old",
-  "man", "woman", "history", "following", "most", "likely", "diagnosis",
-  "examination", "shows", "reveals", "reports", "brought", "given",
-]);
-
-function extractSearchTerms(text: string): string {
-  const words = text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, " ")
-    .split(/\s+/)
-    .filter((w) => w.length > 2 && !STOPWORDS.has(w));
-
-  // Deduplicate and take top 8 most "medical-looking" terms
-  const unique = [...new Set(words)];
-  // Prefer longer words (more likely to be medical terms)
-  unique.sort((a, b) => b.length - a.length);
-  return unique.slice(0, 8).join(" ");
-}
 
 export interface SmartSearchResult {
   cardId: number;
@@ -79,29 +47,52 @@ export function SmartSearch({
     onError("");
 
     try {
-      // Step 1: Extract keywords and search Anki
-      setStatus("Searching your Anki deck for candidate cards...");
-      const searchTerms = extractSearchTerms(input);
+      // Step 1: Ask Claude to extract key medical concepts
+      setStatus("Analyzing question with Claude...");
+      const concepts = await extractMedicalConcepts(input);
+      console.log("[SmartSearch] Extracted concepts:", concepts);
 
-      if (!searchTerms) {
-        onError("Could not extract meaningful search terms from the question.");
+      if (concepts.length === 0) {
+        onError("Could not extract medical concepts from the question. Try adding more clinical detail.");
         setLoading(false);
         return;
       }
 
-      const candidates = await searchCards(searchTerms, 200);
+      setStatus(`Identified concepts: ${concepts.join(", ")}. Searching Anki...`);
+
+      // Step 2: Search Anki with each concept, collecting unique candidates
+      const candidateMap = new Map<number, { cardId: number; text: string; tags: string[]; deckName: string; queue: number }>();
+
+      for (const concept of concepts) {
+        try {
+          const results = await searchCards(concept, 50);
+          console.log(`[SmartSearch] "${concept}" → ${results.length} cards`);
+          for (const card of results) {
+            if (!candidateMap.has(card.cardId)) {
+              candidateMap.set(card.cardId, card);
+            }
+          }
+        } catch (err) {
+          console.error(`[SmartSearch] Search failed for "${concept}":`, err);
+        }
+        // Stop if we have enough candidates
+        if (candidateMap.size >= 200) break;
+      }
+      console.log("[SmartSearch] Total unique candidates:", candidateMap.size);
+
+      const candidates = Array.from(candidateMap.values());
 
       if (candidates.length === 0) {
         onError(
-          `No candidate cards found for: "${searchTerms}". Try pasting a more detailed question or specific medical terms.`
+          `No cards found for concepts: ${concepts.join(", ")}. Your deck may not cover this topic.`
         );
         setLoading(false);
         return;
       }
 
-      // Step 2: Send candidates to Claude for semantic matching
+      // Step 3: Send candidates to Claude for semantic ranking
       setStatus(
-        `Found ${candidates.length} candidates. Asking Claude to find the best matches...`
+        `Found ${candidates.length} candidate cards. Ranking with Claude...`
       );
 
       const matches: MatchResult[] = await matchCardsToQuestion(
@@ -115,18 +106,17 @@ export function SmartSearch({
 
       if (matches.length === 0) {
         onError(
-          "Claude didn't find any strongly relevant cards. Try rephrasing or adding more detail about the medical concepts."
+          "Claude didn't find any strongly relevant cards among the candidates. The topic may not be well-covered in your deck."
         );
         setLoading(false);
         return;
       }
 
-      // Step 3: Get full card info for matched cards
+      // Step 4: Get full card info for matched cards
       setStatus("Loading card details...");
       const matchedCardIds = matches.map((m) => m.cardId);
       const fullCards = await getCardInfo(matchedCardIds);
 
-      // Build results with card info + relevance
       const cardMap = new Map(fullCards.map((c) => [c.cardId, c]));
       const results: SmartSearchResult[] = matches
         .filter((m) => cardMap.has(m.cardId))
@@ -154,7 +144,7 @@ export function SmartSearch({
       </label>
       {!hasApiKey && (
         <div className="smart-search-warning">
-          Requires an Anthropic API key. Click the gear icon above to add one.
+          Requires an Anthropic API key. Click the Settings button above to add one.
         </div>
       )}
       <textarea
