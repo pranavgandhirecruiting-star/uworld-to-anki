@@ -56,16 +56,20 @@ export interface CardInfo {
 }
 
 export async function findCardsByQID(qid: string): Promise<number[]> {
-  // AnKing tags follow patterns like:
-  //   #AK_Step1_v12::UWorld::QID_2127
-  //   #AK_Step2_v12::UWorld::QID_2127
-  // We search broadly to catch all tag formats
+  // AnKing tag formats observed in the wild:
+  //   #AK_Step1_v12::#UWorld::Step::2107      (Step + QID as last segment)
+  //   #AK_Step2_v12::#UWorld::Step::4911
+  //   #AK_Step3_v12::#UWorld::6044            (no "Step" prefix)
+  //   #AK_Step2_v12::#UWorld::COMLEX::101689  (COMLEX variant)
+  //   #AK_Step1_v12::#UWorld::QID_2127        (older format)
   const queries = [
+    // Current AnKing format: QID is the last ::segment
+    `tag:*UWorld::Step::${qid}`,
+    `tag:*UWorld::${qid}`,
+    `tag:*UWorld::COMLEX::${qid}`,
+    // Older formats with QID_ prefix
     `tag:*QID_${qid}*`,
-    `tag:*qid_${qid}*`,
     `tag:*QID${qid}*`,
-    `tag:*UWorld_${qid}*`,
-    `tag:*uworld_${qid}*`,
   ];
 
   const allCardIds = new Set<number>();
@@ -95,6 +99,27 @@ export async function unsuspendCards(cardIds: number[]): Promise<boolean> {
 export async function suspendCards(cardIds: number[]): Promise<boolean> {
   if (cardIds.length === 0) return true;
   return invoke<boolean>("suspend", { cards: cardIds });
+}
+
+export async function createDeck(name: string): Promise<{ id: number; name: string }> {
+  return invoke<{ id: number; name: string }>("createDeck", { name });
+}
+
+export async function changeDeck(cardIds: number[], deck: string): Promise<boolean> {
+  if (cardIds.length === 0) return true;
+  return invoke<boolean>("changeDeck", { cards: cardIds, deck });
+}
+
+export interface SearchCardResult {
+  cardId: number;
+  text: string;
+  tags: string[];
+  deckName: string;
+  queue: number;
+}
+
+export async function searchCards(query: string, limit = 200): Promise<SearchCardResult[]> {
+  return invoke<SearchCardResult[]>("searchCards", { query, limit });
 }
 
 export interface QIDResult {

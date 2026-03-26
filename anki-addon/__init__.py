@@ -29,6 +29,9 @@ def api_handler(request):
         "unsuspend": handle_unsuspend,
         "suspend": handle_suspend,
         "deckNames": handle_deck_names,
+        "createDeck": handle_create_deck,
+        "changeDeck": handle_change_deck,
+        "searchCards": handle_search_cards,
     }
 
     handler = handlers.get(action)
@@ -105,6 +108,75 @@ def handle_deck_names():
     if not mw.col:
         raise Exception("Collection not loaded")
     return [d.name for d in mw.col.decks.all_names_and_ids()]
+
+
+def handle_create_deck(name=""):
+    if not mw.col:
+        raise Exception("Collection not loaded")
+    if not name.strip():
+        raise Exception("Deck name is required")
+    result = mw.col.decks.add_normal_deck_with_name(name.strip())
+    mw.reset()
+    return {"id": result.id, "name": name.strip()}
+
+
+def handle_search_cards(query="", limit=200):
+    """Search cards by content/tags and return text previews for LLM matching."""
+    if not mw.col:
+        raise Exception("Collection not loaded")
+    if not query.strip():
+        raise Exception("Search query is required")
+
+    import re
+
+    card_ids = list(mw.col.find_cards(query.strip()))[:limit]
+    results = []
+
+    for card_id in card_ids:
+        try:
+            card = mw.col.get_card(card_id)
+            note = card.note()
+
+            # Combine all field text, strip HTML
+            text_parts = []
+            for field_val in note.fields:
+                clean = re.sub(r'<[^>]*>', '', field_val).strip()
+                if clean:
+                    text_parts.append(clean)
+            text = " | ".join(text_parts)
+
+            # Truncate to ~300 chars to keep payload manageable
+            if len(text) > 300:
+                text = text[:300] + "..."
+
+            results.append({
+                "cardId": card.id,
+                "text": text,
+                "tags": note.tags,
+                "deckName": mw.col.decks.name(card.did),
+                "queue": card.queue,
+            })
+        except Exception:
+            pass
+
+    return results
+
+
+def handle_change_deck(cards=None, deck=""):
+    if not mw.col:
+        raise Exception("Collection not loaded")
+    if not cards:
+        raise Exception("No cards specified")
+    if not deck.strip():
+        raise Exception("Deck name is required")
+    # Find or create the target deck
+    deck_id = mw.col.decks.id_for_name(deck.strip())
+    if deck_id is None:
+        result = mw.col.decks.add_normal_deck_with_name(deck.strip())
+        deck_id = result.id
+    mw.col.set_deck(cards, deck_id)
+    mw.reset()
+    return True
 
 
 # ── Server lifecycle ──

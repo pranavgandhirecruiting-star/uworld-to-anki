@@ -1,6 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { QIDResult } from "../api/ankiConnect";
-import { unsuspendCards } from "../api/ankiConnect";
+import {
+  unsuspendCards,
+  suspendCards,
+  getDecks,
+  createDeck,
+  changeDeck,
+} from "../api/ankiConnect";
 
 interface Props {
   results: QIDResult[];
@@ -8,17 +14,16 @@ interface Props {
   onUnsuspendedAll: (total: number) => void;
 }
 
-function getFieldPreview(fields: Record<string, { value: string; order: number }>): string {
-  // Try common AnKing field names
+function getFieldPreview(
+  fields: Record<string, { value: string; order: number }>
+): string {
   const candidates = ["Text", "Extra", "Cloze", "Front", "Back"];
   for (const name of candidates) {
     if (fields[name]?.value) {
-      // Strip HTML tags for preview
       const text = fields[name].value.replace(/<[^>]*>/g, "").trim();
       if (text) return text.slice(0, 150) + (text.length > 150 ? "..." : "");
     }
   }
-  // Fallback: first non-empty field
   const sorted = Object.values(fields).sort((a, b) => a.order - b.order);
   for (const f of sorted) {
     const text = f.value.replace(/<[^>]*>/g, "").trim();
@@ -27,22 +32,29 @@ function getFieldPreview(fields: Record<string, { value: string; order: number }
   return "(no preview available)";
 }
 
-function QIDResultCard({ result, onUnsuspended }: {
+function QIDResultCard({
+  result,
+  onUnsuspended,
+}: {
   result: QIDResult;
   onUnsuspended: (qid: string, count: number) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const [unsuspending, setUnsuspending] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [unsuspendedIds, setUnsuspendedIds] = useState<Set<number>>(new Set());
+  const [suspendedIds, setSuspendedIds] = useState<Set<number>>(new Set());
 
-  const suspendedCards = result.cards.filter(
-    (c) => c.queue === -1 && !unsuspendedIds.has(c.cardId)
-  );
+  const isSuspended = (card: { cardId: number; queue: number }) =>
+    (card.queue === -1 || suspendedIds.has(card.cardId)) &&
+    !unsuspendedIds.has(card.cardId);
+
+  const suspendedCards = result.cards.filter((c) => isSuspended(c));
+  const activeCards = result.cards.filter((c) => !isSuspended(c));
 
   const handleUnsuspend = async () => {
     const ids = suspendedCards.map((c) => c.cardId);
     if (ids.length === 0) return;
-    setUnsuspending(true);
+    setBusy(true);
     try {
       await unsuspendCards(ids);
       setUnsuspendedIds((prev) => new Set([...prev, ...ids]));
@@ -50,7 +62,26 @@ function QIDResultCard({ result, onUnsuspended }: {
     } catch (err) {
       console.error("Failed to unsuspend:", err);
     }
-    setUnsuspending(false);
+    setBusy(false);
+  };
+
+  const handleSuspend = async () => {
+    const ids = activeCards.map((c) => c.cardId);
+    if (ids.length === 0) return;
+    setBusy(true);
+    try {
+      await suspendCards(ids);
+      setSuspendedIds((prev) => new Set([...prev, ...ids]));
+      // Remove from unsuspended tracking
+      setUnsuspendedIds((prev) => {
+        const next = new Set(prev);
+        ids.forEach((id) => next.delete(id));
+        return next;
+      });
+    } catch (err) {
+      console.error("Failed to suspend:", err);
+    }
+    setBusy(false);
   };
 
   if (result.totalCount === 0) {
@@ -83,18 +114,23 @@ function QIDResultCard({ result, onUnsuspended }: {
       </div>
 
       <div className="result-actions">
-        {suspendedCards.length > 0 ? (
+        {suspendedCards.length > 0 && (
           <button
             className="btn btn-primary btn-sm"
             onClick={handleUnsuspend}
-            disabled={unsuspending}
+            disabled={busy}
           >
-            {unsuspending
-              ? "Unsuspending..."
-              : `Unsuspend ${suspendedCards.length} card${suspendedCards.length === 1 ? "" : "s"}`}
+            {busy ? "..." : `Unsuspend ${suspendedCards.length}`}
           </button>
-        ) : (
-          <span className="all-active">All cards active</span>
+        )}
+        {activeCards.length > 0 && (
+          <button
+            className="btn btn-danger btn-sm"
+            onClick={handleSuspend}
+            disabled={busy}
+          >
+            {busy ? "..." : `Suspend ${activeCards.length}`}
+          </button>
         )}
         <button
           className="btn btn-ghost btn-sm"
@@ -109,12 +145,10 @@ function QIDResultCard({ result, onUnsuspended }: {
           {result.cards.map((card) => (
             <div
               key={card.cardId}
-              className={`card-preview ${card.queue === -1 && !unsuspendedIds.has(card.cardId) ? "suspended" : "active"}`}
+              className={`card-preview ${isSuspended(card) ? "suspended" : "active"}`}
             >
               <div className="card-preview-status">
-                {card.queue === -1 && !unsuspendedIds.has(card.cardId)
-                  ? "Suspended"
-                  : "Active"}
+                {isSuspended(card) ? "Suspended" : "Active"}
               </div>
               <div className="card-preview-text">
                 {getFieldPreview(card.fields)}
@@ -130,25 +164,96 @@ function QIDResultCard({ result, onUnsuspended }: {
 
 export function Results({ results, onUnsuspended, onUnsuspendedAll }: Props) {
   const [unsuspendingAll, setUnsuspendingAll] = useState(false);
+  const [suspendingAll, setSuspendingAll] = useState(false);
+  const [movingDeck, setMovingDeck] = useState(false);
+  const [deckList, setDeckList] = useState<string[]>([]);
+  const [showNewDeck, setShowNewDeck] = useState(false);
+  const [showExistingDeck, setShowExistingDeck] = useState(false);
+  const [newDeckName, setNewDeckName] = useState("");
+  const [selectedDeck, setSelectedDeck] = useState("");
+  const [deckMessage, setDeckMessage] = useState<string | null>(null);
 
   const totalCards = results.reduce((sum, r) => sum + r.totalCount, 0);
   const totalSuspended = results.reduce((sum, r) => sum + r.suspendedCount, 0);
+  const totalActive = totalCards - totalSuspended;
   const qidsWithCards = results.filter((r) => r.totalCount > 0).length;
   const qidsWithoutCards = results.filter((r) => r.totalCount === 0).length;
 
+  const allCardIds = results.flatMap((r) => r.cardIds);
+
+  // Load deck list when "Add to Existing Deck" is opened
+  useEffect(() => {
+    if (showExistingDeck) {
+      getDecks().then(setDeckList).catch(() => setDeckList([]));
+    }
+  }, [showExistingDeck]);
+
   const handleUnsuspendAll = async () => {
-    const allSuspendedIds = results.flatMap((r) =>
+    const ids = results.flatMap((r) =>
       r.cards.filter((c) => c.queue === -1).map((c) => c.cardId)
     );
-    if (allSuspendedIds.length === 0) return;
+    if (ids.length === 0) return;
     setUnsuspendingAll(true);
     try {
-      await unsuspendCards(allSuspendedIds);
-      onUnsuspendedAll(allSuspendedIds.length);
+      await unsuspendCards(ids);
+      onUnsuspendedAll(ids.length);
     } catch (err) {
       console.error("Failed to unsuspend all:", err);
     }
     setUnsuspendingAll(false);
+  };
+
+  const handleSuspendAll = async () => {
+    const ids = results.flatMap((r) =>
+      r.cards.filter((c) => c.queue !== -1).map((c) => c.cardId)
+    );
+    if (ids.length === 0) return;
+    setSuspendingAll(true);
+    try {
+      await suspendCards(ids);
+    } catch (err) {
+      console.error("Failed to suspend all:", err);
+    }
+    setSuspendingAll(false);
+  };
+
+  const handleNewDeck = async () => {
+    if (!newDeckName.trim()) return;
+    setMovingDeck(true);
+    setDeckMessage(null);
+    try {
+      await createDeck(newDeckName.trim());
+      await changeDeck(allCardIds, newDeckName.trim());
+      setDeckMessage(
+        `Moved ${allCardIds.length} cards to "${newDeckName.trim()}"`
+      );
+      setShowNewDeck(false);
+      setNewDeckName("");
+    } catch (err) {
+      setDeckMessage(
+        `Error: ${err instanceof Error ? err.message : "Failed to move cards"}`
+      );
+    }
+    setMovingDeck(false);
+  };
+
+  const handleExistingDeck = async () => {
+    if (!selectedDeck) return;
+    setMovingDeck(true);
+    setDeckMessage(null);
+    try {
+      await changeDeck(allCardIds, selectedDeck);
+      setDeckMessage(
+        `Moved ${allCardIds.length} cards to "${selectedDeck}"`
+      );
+      setShowExistingDeck(false);
+      setSelectedDeck("");
+    } catch (err) {
+      setDeckMessage(
+        `Error: ${err instanceof Error ? err.message : "Failed to move cards"}`
+      );
+    }
+    setMovingDeck(false);
   };
 
   return (
@@ -175,17 +280,121 @@ export function Results({ results, onUnsuspended, onUnsuspendedAll }: Props) {
             </div>
           )}
         </div>
-        {totalSuspended > 0 && (
-          <button
-            className="btn btn-primary"
-            onClick={handleUnsuspendAll}
-            disabled={unsuspendingAll}
-          >
-            {unsuspendingAll
-              ? "Unsuspending..."
-              : `Unsuspend All ${totalSuspended} Cards`}
-          </button>
-        )}
+
+        <div className="summary-actions">
+          {totalSuspended > 0 && (
+            <button
+              className="btn btn-primary"
+              onClick={handleUnsuspendAll}
+              disabled={unsuspendingAll}
+            >
+              {unsuspendingAll
+                ? "Unsuspending..."
+                : `Unsuspend All ${totalSuspended} Cards`}
+            </button>
+          )}
+          {totalActive > 0 && (
+            <button
+              className="btn btn-danger"
+              onClick={handleSuspendAll}
+              disabled={suspendingAll}
+            >
+              {suspendingAll
+                ? "Suspending..."
+                : `Suspend All ${totalActive} Cards`}
+            </button>
+          )}
+        </div>
+
+        <div className="deck-actions">
+          <div className="deck-actions-buttons">
+            <button
+              className="btn btn-sm"
+              onClick={() => {
+                setShowNewDeck(!showNewDeck);
+                setShowExistingDeck(false);
+              }}
+              disabled={allCardIds.length === 0}
+            >
+              Add to New Deck
+            </button>
+            <button
+              className="btn btn-sm"
+              onClick={() => {
+                setShowExistingDeck(!showExistingDeck);
+                setShowNewDeck(false);
+              }}
+              disabled={allCardIds.length === 0}
+            >
+              Add to Existing Deck
+            </button>
+          </div>
+
+          {showNewDeck && (
+            <div className="deck-input-row">
+              <input
+                type="text"
+                className="deck-name-input"
+                placeholder="Enter new deck name..."
+                value={newDeckName}
+                onChange={(e) => setNewDeckName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleNewDeck()}
+                autoFocus
+              />
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={handleNewDeck}
+                disabled={!newDeckName.trim() || movingDeck}
+              >
+                {movingDeck ? "Moving..." : "Create & Move"}
+              </button>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setShowNewDeck(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
+          {showExistingDeck && (
+            <div className="deck-input-row">
+              <select
+                className="deck-select"
+                value={selectedDeck}
+                onChange={(e) => setSelectedDeck(e.target.value)}
+              >
+                <option value="">Select a deck...</option>
+                {deckList.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={handleExistingDeck}
+                disabled={!selectedDeck || movingDeck}
+              >
+                {movingDeck ? "Moving..." : "Move Cards"}
+              </button>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setShowExistingDeck(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
+          {deckMessage && (
+            <div
+              className={`deck-message ${deckMessage.startsWith("Error") ? "error" : "success"}`}
+            >
+              {deckMessage}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="results-list">
