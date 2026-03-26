@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Built add-on artifacts
+anki-addon/web/
+*.ankiaddon
+__pycache__
+*.pyc
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

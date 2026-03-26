@@ -1,12 +1,13 @@
-const ANKI_CONNECT_URL = "http://127.0.0.1:8765";
+// When served by the Anki add-on, API is on the same origin.
+// When developing locally (npm run dev), proxy to the add-on server.
+const API_URL = "/api";
 
-interface AnkiConnectRequest {
+interface ApiRequest {
   action: string;
-  version: 6;
   params?: Record<string, unknown>;
 }
 
-interface AnkiConnectResponse<T = unknown> {
+interface ApiResponse<T = unknown> {
   result: T;
   error: string | null;
 }
@@ -15,14 +16,15 @@ async function invoke<T = unknown>(
   action: string,
   params?: Record<string, unknown>
 ): Promise<T> {
-  const request: AnkiConnectRequest = { action, version: 6, params };
+  const request: ApiRequest = { action, params };
 
-  const response = await fetch(ANKI_CONNECT_URL, {
+  const response = await fetch(API_URL, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
   });
 
-  const data: AnkiConnectResponse<T> = await response.json();
+  const data: ApiResponse<T> = await response.json();
 
   if (data.error) {
     throw new Error(data.error);
@@ -34,7 +36,7 @@ async function invoke<T = unknown>(
 export async function checkConnection(): Promise<boolean> {
   try {
     const version = await invoke<number>("version");
-    return version >= 6;
+    return version >= 1;
   } catch {
     return false;
   }
