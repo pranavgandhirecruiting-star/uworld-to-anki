@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { QuestionExplanation, GlossaryTerm } from "../api/claude";
 
 interface Props {
@@ -66,7 +66,6 @@ function Tooltip({
   term: GlossaryTerm;
   rect: DOMRect;
 }) {
-  // Position tooltip below the term
   const style: React.CSSProperties = {
     position: "fixed",
     left: Math.min(rect.left, window.innerWidth - 320),
@@ -74,7 +73,6 @@ function Tooltip({
     zIndex: 1000,
   };
 
-  // If tooltip would go off bottom of screen, show above
   if (rect.bottom + 120 > window.innerHeight) {
     style.top = rect.top - 6;
     style.transform = "translateY(-100%)";
@@ -92,13 +90,49 @@ export function ExplanationPanel({ explanation }: Props) {
   const [collapsed, setCollapsed] = useState(false);
   const [hoveredTerm, setHoveredTerm] = useState<GlossaryTerm | null>(null);
   const [hoveredRect, setHoveredRect] = useState<DOMRect | null>(null);
+  const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const glossary = explanation.glossary || [];
 
+  // Dismiss tooltip on any click
+  useEffect(() => {
+    const handleClick = () => {
+      setHoveredTerm(null);
+      setHoveredRect(null);
+    };
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, []);
+
+  // Dismiss tooltip on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      setHoveredTerm(null);
+      setHoveredRect(null);
+    };
+    window.addEventListener("scroll", handleScroll, true);
+    return () => window.removeEventListener("scroll", handleScroll, true);
+  }, []);
+
   const handleHover = useCallback(
     (term: GlossaryTerm | null, rect: DOMRect | null) => {
-      setHoveredTerm(term);
-      setHoveredRect(rect);
+      // Clear any pending dismiss
+      if (dismissTimer.current) {
+        clearTimeout(dismissTimer.current);
+        dismissTimer.current = null;
+      }
+
+      if (term && rect) {
+        // Show immediately
+        setHoveredTerm(term);
+        setHoveredRect(rect);
+      } else {
+        // Dismiss after a short delay (prevents flicker when moving between terms)
+        dismissTimer.current = setTimeout(() => {
+          setHoveredTerm(null);
+          setHoveredRect(null);
+        }, 150);
+      }
     },
     []
   );
