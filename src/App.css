@@ -953,3 +953,206 @@
   color: var(--text-h);
   line-height: 1.4;
 }
+
+/* ── Auth Bar ── */
+.auth-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 0.8rem;
+}
+
+.auth-bar-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auth-bar-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.user-name {
+  color: var(--text-h);
+  font-weight: 500;
+}
+
+.plan-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.plan-free {
+  background: var(--code-bg);
+  color: var(--text);
+}
+
+.plan-pro {
+  background: rgba(124, 58, 237, 0.15);
+  color: var(--accent);
+}
+
+.usage-count {
+  color: var(--text);
+}
+
+.auth-bar-usage {
+  display: flex;
+  align-items: center;
+}
+
+/* ── Upgrade Prompt ── */
+.upgrade-prompt {
+  text-align: center;
+  padding: 32px 24px;
+  border: 1px solid var(--accent-border);
+  border-radius: 10px;
+  background: var(--accent-bg);
+}
+
+.upgrade-prompt-header {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-h);
+  margin-bottom: 8px;
+}
+
+.upgrade-prompt p {
+  color: var(--text);
+  margin: 8px 0 16px;
+}
+
+.upgrade-prompt-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+/* ── Study Plan ── */
+.study-plan-gate {
+  text-align: center;
+  padding: 40px 24px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.study-plan-gate h3 {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+}
+
+.study-plan-gate p {
+  color: var(--text);
+  margin: 0 0 16px;
+}
+
+.study-plan-features {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 16px 0;
+  font-size: 0.9rem;
+  color: var(--text-h);
+}
+
+.study-plan-price {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.study-plan-empty {
+  text-align: center;
+  padding: 32px 24px;
+}
+
+.study-plan-empty h3 {
+  margin: 0 0 8px;
+}
+
+.study-plan-results h3 {
+  margin: 0 0 12px;
+}
+
+.plan-summary {
+  color: var(--text);
+  margin: 0 0 16px;
+  font-style: italic;
+}
+
+.plan-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.plan-section {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.plan-section.plan-high {
+  border-left: 3px solid #ef4444;
+}
+
+.plan-section.plan-medium {
+  border-left: 3px solid #f59e0b;
+}
+
+.plan-section.plan-low {
+  border-left: 3px solid #22c55e;
+}
+
+.plan-section-header {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.plan-priority {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.plan-section-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.plan-topic {
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.plan-reason {
+  font-size: 0.8rem;
+  color: var(--text);
+}
+
+.plan-section-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.plan-action-text {
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.plan-done {
+  font-size: 0.8rem;
+  color: #22c55e;
+  font-weight: 500;
+}

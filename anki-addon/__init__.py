@@ -32,6 +32,7 @@ def api_handler(request):
         "createDeck": handle_create_deck,
         "changeDeck": handle_change_deck,
         "searchCards": handle_search_cards,
+        "getStudyStats": handle_get_study_stats,
     }
 
     handler = handlers.get(action)
@@ -177,6 +178,79 @@ def handle_change_deck(cards=None, deck=""):
     mw.col.set_deck(cards, deck_id)
     mw.reset()
     return True
+
+
+def handle_get_study_stats():
+    """Get card review stats grouped by top-level AnKing topic tags."""
+    if not mw.col:
+        raise Exception("Collection not loaded")
+
+    from collections import defaultdict
+
+    # Find all cards in the collection
+    all_card_ids = mw.col.find_cards("")
+    topic_stats = defaultdict(lambda: {
+        "total": 0, "suspended": 0, "due": 0,
+        "highLapse": 0, "new": 0,
+    })
+
+    # Today's due cutoff
+    import time
+    today = int(time.time())
+
+    for card_id in all_card_ids:
+        try:
+            card = mw.col.get_card(card_id)
+            note = card.note()
+
+            # Extract top-level topic from AnKing tags
+            # e.g., "#AK_Step1_v12::Cardiology::Heart_Failure" → "Cardiology"
+            topic = None
+            for tag in note.tags:
+                if tag.startswith("#AK_Step") and "::" in tag:
+                    parts = tag.split("::")
+                    if len(parts) >= 2:
+                        # Skip the #AK_Step1_v12 prefix, get first topic
+                        candidate = parts[1].lstrip("#")
+                        if candidate and candidate not in ("UWorld", "AMBOSS", "Pathoma", "Boards_and_Beyond", "SketchyMedical"):
+                            topic = candidate.replace("_", " ")
+                            break
+
+            if not topic:
+                topic = "Other"
+
+            stats = topic_stats[topic]
+            stats["total"] += 1
+
+            if card.queue == -1:
+                stats["suspended"] += 1
+            elif card.queue == 0:
+                stats["new"] += 1
+
+            # Card is due if queue > 0 and due <= today
+            if card.queue in (1, 2, 3) and card.due <= today:
+                stats["due"] += 1
+
+            # High lapse = forgotten 3+ times
+            if card.lapses >= 3:
+                stats["highLapse"] += 1
+
+        except Exception:
+            pass
+
+    # Convert to sorted list
+    results = []
+    for topic, stats in sorted(topic_stats.items(), key=lambda x: x[1]["total"], reverse=True):
+        results.append({
+            "topic": topic,
+            "total": stats["total"],
+            "suspended": stats["suspended"],
+            "due": stats["due"],
+            "highLapse": stats["highLapse"],
+            "new": stats["new"],
+        })
+
+    return results
 
 
 # ── Server lifecycle ──

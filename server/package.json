@@ -1,0 +1,31 @@
+{
+  "name": "uworld-to-anki-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "db:push": "prisma db push",
+    "db:generate": "prisma generate"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@prisma/client": "^6.6.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "google-auth-library": "^9.15.1",
+    "jsonwebtoken": "^9.0.2",
+    "stripe": "^17.7.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.2",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/node": "^22.15.0",
+    "prisma": "^6.6.0",
+    "tsx": "^4.19.4",
+    "typescript": "^5.9.3"
+  }
+}

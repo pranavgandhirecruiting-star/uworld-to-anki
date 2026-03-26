@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  googleId  String   @unique
+  plan      String   @default("free") // "free" | "pro"
+  stripeId  String?
+  createdAt DateTime @default(now())
+
+  usage    Usage[]
+  sessions SearchSession[]
+}
+
+model Usage {
+  id            String @id @default(uuid())
+  userId        String
+  date          String // "2026-03-26" — daily bucket
+  smartSearches Int    @default(0)
+  studyPlans    Int    @default(0)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, date])
+}
+
+model SearchSession {
+  id           String   @id @default(uuid())
+  userId       String
+  timestamp    DateTime @default(now())
+  questionText String?
+  qids         String[]
+  topicsFound  String[]
+  cardsMatched Int      @default(0)
+  mode         String   // "qid" | "smart"
+
+  user User @relation(fields: [userId], references: [id])
+}
