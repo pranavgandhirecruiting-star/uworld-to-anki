@@ -11,6 +11,8 @@ import { Settings } from "./components/Settings";
 import { AuthBar } from "./components/AuthBar";
 import { UpgradePrompt } from "./components/UpgradePrompt";
 import { StudyPlan } from "./components/StudyPlan";
+import { Logo } from "./components/Logo";
+import { FetchAnimation } from "./components/FetchAnimation";
 import { lookupQIDs, type QIDResult } from "./api/ankiConnect";
 import { type QuestionExplanation } from "./api/claude";
 import {
@@ -65,10 +67,31 @@ function App() {
   }, []);
 
   const handleLogin = useCallback(() => {
-    // Google OAuth will be triggered by the Google Sign-In button
-    // For now, this opens settings where they can manage their account
-    // In production, this would trigger the Google OAuth popup
-    setSettingsOpen(true);
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      setError("Google Sign-In is not configured. Contact support.");
+      return;
+    }
+    const google = (window as any).google;
+    if (!google?.accounts?.id) {
+      setError("Google Sign-In failed to load. Please refresh and try again.");
+      return;
+    }
+    google.accounts.id.initialize({
+      client_id: clientId,
+      callback: async (response: { credential: string }) => {
+        try {
+          const { loginWithGoogle } = await import("./api/backend");
+          const { user, usage } = await loginWithGoogle(response.credential);
+          setUser(user);
+          setUsage(usage);
+          setError(null);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Sign-in failed. Please try again.");
+        }
+      },
+    });
+    google.accounts.id.prompt();
   }, []);
 
   const handleLogout = useCallback(() => {
@@ -190,9 +213,10 @@ function App() {
     <div className="app">
       <header className="app-header">
         <div className="header-row">
-          <h1>
-            UWorld <span className="arrow">&rarr;</span> Anki
-          </h1>
+          <div className="brand">
+            <Logo size={36} />
+            <h1>O<span className="brand-ll">ll</span>opa</h1>
+          </div>
           <button
             className="btn btn-ghost settings-btn"
             onClick={() => setSettingsOpen(true)}
@@ -201,9 +225,7 @@ function App() {
             Settings
           </button>
         </div>
-        <p className="subtitle">
-          Find the right Anki cards for any question you missed.
-        </p>
+        <p className="subtitle">A Learner's Best Friend</p>
       </header>
 
       <AuthBar
@@ -295,20 +317,13 @@ function App() {
         )}
 
         {loading && mode === "qid" && (
-          <div className="loading">
-            <div className="spinner" />
-            <p>
-              Searching Anki for {lastQIDs.length} QID
-              {lastQIDs.length === 1 ? "" : "s"}...
-            </p>
-          </div>
+          <FetchAnimation
+            message={`Fetching ${lastQIDs.length} QID${lastQIDs.length === 1 ? "" : "s"}...`}
+          />
         )}
 
         {loading && mode === "smart" && (
-          <div className="loading">
-            <div className="spinner" />
-            <p>Analyzing with Claude...</p>
-          </div>
+          <FetchAnimation message="Sniffing out the best cards..." />
         )}
 
         {results && (
@@ -333,9 +348,9 @@ function App() {
 
       <footer className="app-footer">
         <p>
-          QID Lookup talks directly to your local Anki. Smart Search and Study
-          Plans use AI to match questions to cards. No UWorld content is stored
-          or transmitted.
+          Ollopa talks directly to your local Anki. Smart Search and Study
+          Plans use AI to match questions to cards. No question bank content
+          is stored or transmitted.
         </p>
       </footer>
 
