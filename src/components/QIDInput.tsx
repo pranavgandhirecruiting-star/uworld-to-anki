@@ -5,10 +5,11 @@ interface Props {
   onSubmit: (qids: string[]) => void;
   loading: boolean;
   disabled: boolean;
+  initialValue?: string;
 }
 
-export function QIDInput({ onSubmit, loading, disabled }: Props) {
-  const [input, setInput] = useState("");
+export function QIDInput({ onSubmit, loading, disabled, initialValue }: Props) {
+  const [input, setInput] = useState(initialValue || "");
 
   const parsed = parseQIDs(input);
 

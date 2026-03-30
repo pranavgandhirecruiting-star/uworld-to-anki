@@ -7,7 +7,6 @@ import {
 } from "../lib/claude.js";
 import {
   requireAuth,
-  optionalAuth,
   type AuthRequest,
 } from "../middleware/auth.js";
 
@@ -15,7 +14,7 @@ const router = Router();
 
 const FREE_DAILY_LIMIT = 3;
 
-router.post("/", optionalAuth, async (req: AuthRequest, res) => {
+router.post("/", requireAuth, async (req: AuthRequest, res) => {
   const { questionText, candidates } = req.body;
 
   if (!questionText || !candidates?.length) {
@@ -23,26 +22,22 @@ router.post("/", optionalAuth, async (req: AuthRequest, res) => {
     return;
   }
 
-  // Check usage limits
-  const userId = req.user?.id;
-  const plan = req.user?.plan || "free";
+  // Check usage limits — user is always authenticated now
+  const userId = req.user!.id;
+  const plan = req.user!.plan;
   const today = new Date().toISOString().split("T")[0];
 
   if (plan === "free") {
-    // For anonymous users, we rely on frontend localStorage tracking.
-    // For logged-in free users, enforce server-side.
-    if (userId) {
-      const usage = await prisma.usage.findUnique({
-        where: { userId_date: { userId, date: today } },
+    const usage = await prisma.usage.findUnique({
+      where: { userId_date: { userId, date: today } },
+    });
+    if ((usage?.smartSearches ?? 0) >= FREE_DAILY_LIMIT) {
+      res.status(429).json({
+        error: "daily_limit",
+        message: `You've used ${FREE_DAILY_LIMIT}/${FREE_DAILY_LIMIT} free Smart Searches today. Upgrade to Pro for unlimited.`,
+        usage: { smartSearches: usage?.smartSearches ?? 0 },
       });
-      if ((usage?.smartSearches ?? 0) >= FREE_DAILY_LIMIT) {
-        res.status(429).json({
-          error: "daily_limit",
-          message: `You've used ${FREE_DAILY_LIMIT}/${FREE_DAILY_LIMIT} free Smart Searches today. Upgrade to Pro for unlimited.`,
-          usage: { smartSearches: usage?.smartSearches ?? 0 },
-        });
-        return;
-      }
+      return;
     }
   }
 
@@ -57,24 +52,22 @@ router.post("/", optionalAuth, async (req: AuthRequest, res) => {
     ]);
 
     // Increment usage counter
-    if (userId) {
-      await prisma.usage.upsert({
-        where: { userId_date: { userId, date: today } },
-        update: { smartSearches: { increment: 1 } },
-        create: { userId, date: today, smartSearches: 1 },
-      });
+    await prisma.usage.upsert({
+      where: { userId_date: { userId, date: today } },
+      update: { smartSearches: { increment: 1 } },
+      create: { userId, date: today, smartSearches: 1 },
+    });
 
-      // Save search session for analytics
-      await prisma.searchSession.create({
-        data: {
-          userId,
-          questionText: questionText.slice(0, 500),
-          topicsFound: [],
-          cardsMatched: matches.length,
-          mode: "smart",
-        },
-      });
-    }
+    // Save search session for analytics
+    await prisma.searchSession.create({
+      data: {
+        userId,
+        questionText: questionText.slice(0, 500),
+        topicsFound: [],
+        cardsMatched: matches.length,
+        mode: "smart",
+      },
+    });
 
     res.json({ matches, explanation });
   } catch (err) {
@@ -84,7 +77,7 @@ router.post("/", optionalAuth, async (req: AuthRequest, res) => {
 });
 
 // Concept extraction endpoint (used by frontend before sending candidates)
-router.post("/concepts", optionalAuth, async (req: AuthRequest, res) => {
+router.post("/concepts", requireAuth, async (req: AuthRequest, res) => {
   const { questionText } = req.body;
 
   if (!questionText) {

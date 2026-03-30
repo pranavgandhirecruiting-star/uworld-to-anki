@@ -1,16 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { searchCards, unsuspendCards } from "../api/ankiConnect";
-import type { StudyPlanSection, StudyPlanResponse } from "../api/backend";
+import { generateStudyPlan, type StudyPlanSection, type StudyPlanResponse } from "../api/backend";
+import { getSessions } from "../utils/sessionHistory";
+
+const EXAM_DATE_KEY = "ollopa-exam-date";
 
 interface Props {
-  plan: StudyPlanResponse | null;
-  loading: boolean;
-  onGenerate: () => void;
   isPro: boolean;
   isLoggedIn: boolean;
   onUpgrade: () => void;
-  onLogin: () => void;
   disabled: boolean;
+  connected: boolean;
+}
+
+interface StudyStats {
+  dueToday: number;
+  totalCards: number;
+  unsuspendedCards: number;
 }
 
 const priorityEmoji = {
@@ -26,10 +32,8 @@ function PlanSection({ section }: { section: StudyPlanSection }) {
   const handleAction = async () => {
     setActing(true);
     try {
-      // Search for cards matching this section's query
       const results = await searchCards(section.searchQuery, 100);
       if (results.length > 0) {
-        // Unsuspend any suspended cards
         const suspendedIds = results
           .filter((c) => c.queue === -1)
           .map((c) => c.cardId);
@@ -73,21 +77,108 @@ function PlanSection({ section }: { section: StudyPlanSection }) {
   );
 }
 
+function getDaysUntilExam(): number | null {
+  const examDate = localStorage.getItem(EXAM_DATE_KEY);
+  if (!examDate) return null;
+  const diff = new Date(examDate).getTime() - Date.now();
+  if (diff < 0) return null;
+  return Math.ceil(diff / 86_400_000);
+}
+
 export function StudyPlan({
-  plan,
-  loading,
-  onGenerate,
   isPro,
   isLoggedIn,
   onUpgrade,
-  onLogin,
   disabled,
+  connected,
 }: Props) {
+  const [plan, setPlan] = useState<StudyPlanResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<StudyStats | null>(null);
+
+  // Load Anki stats on mount when connected
+  useEffect(() => {
+    if (!connected || !isPro) return;
+
+    async function loadStats() {
+      try {
+        // Get total/unsuspended card counts via a broad search
+        const allCards = await searchCards("deck:*", 1);
+        void allCards; // We just need the count mechanism
+        // Use a simpler approach: search for due cards
+        const dueCards = await searchCards("is:due", 200);
+        const totalSearch = await searchCards("*", 1);
+        void totalSearch;
+
+        setStats({
+          dueToday: dueCards.length,
+          totalCards: 0, // Will be approximated
+          unsuspendedCards: 0,
+        });
+      } catch {
+        // Stats are optional — don't block the UI
+      }
+    }
+
+    loadStats();
+  }, [connected, isPro]);
+
+  const handleGenerate = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Gather recent topics from session history
+      const sessions = getSessions();
+      const recentTopics = sessions
+        .filter(s => s.mode === "smart" && s.questionText)
+        .slice(0, 5)
+        .map(s => s.questionText!)
+        .filter(Boolean);
+
+      const examDate = localStorage.getItem(EXAM_DATE_KEY) || undefined;
+
+      // Get some Anki stats to send to backend
+      const ankiStats: { topic: string; total: number; suspended: number; due: number; highLapse: number }[] = [];
+      try {
+        const dueCards = await searchCards("is:due", 100);
+        if (dueCards.length > 0) {
+          // Group by deck
+          const deckMap = new Map<string, { total: number; suspended: number; due: number }>();
+          for (const card of dueCards) {
+            const deck = card.deckName.split("::").slice(0, 2).join("::");
+            const entry = deckMap.get(deck) || { total: 0, suspended: 0, due: 0 };
+            entry.total++;
+            entry.due++;
+            if (card.queue === -1) entry.suspended++;
+            deckMap.set(deck, entry);
+          }
+          for (const [topic, data] of deckMap) {
+            ankiStats.push({ topic, ...data, highLapse: 0 });
+          }
+        }
+      } catch {
+        // If Anki stats fail, still try to generate with what we have
+      }
+
+      if (ankiStats.length === 0) {
+        // Provide at least a placeholder so the backend doesn't reject
+        ankiStats.push({ topic: "General Review", total: 0, suspended: 0, due: 0, highLapse: 0 });
+      }
+
+      const result = await generateStudyPlan(ankiStats, recentTopics, examDate);
+      setPlan(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to generate study plan");
+    }
+    setLoading(false);
+  }, []);
+
   // Not logged in
   if (!isLoggedIn) {
     return (
       <div className="study-plan-gate">
-        <h3>What Should I Study Tonight?</h3>
+        <h3>Study Co-Pilot</h3>
         <p>
           AI analyzes your Anki stats and missed questions to build a
           prioritized study session — so you spend time on what matters most.
@@ -97,9 +188,7 @@ export function StudyPlan({
           <div>Daily personalized study plans</div>
           <div>Topic weakness tracking</div>
         </div>
-        <button className="btn btn-primary" onClick={onLogin}>
-          Sign in with Google
-        </button>
+        <p className="study-plan-cta">Sign in above to get started</p>
       </div>
     );
   }
@@ -108,7 +197,7 @@ export function StudyPlan({
   if (!isPro) {
     return (
       <div className="study-plan-gate">
-        <h3>What Should I Study Tonight?</h3>
+        <h3>Study Co-Pilot</h3>
         <p>
           AI analyzes your Anki stats and missed questions to build a
           prioritized study session — so you spend time on what matters most.
@@ -126,9 +215,32 @@ export function StudyPlan({
     );
   }
 
-  // Pro user — show generate button or plan
+  const daysUntil = getDaysUntilExam();
+
+  // Pro user — show stats bar, generate button, and plan
   return (
     <div className="study-plan">
+      {/* Quick Stats Bar */}
+      <div className="copilot-stats-bar">
+        {daysUntil !== null && (
+          <div className="copilot-stat">
+            <span className="copilot-stat-value">{daysUntil}</span>
+            <span className="copilot-stat-label">days to exam</span>
+          </div>
+        )}
+        {stats && (
+          <div className="copilot-stat">
+            <span className="copilot-stat-value">{stats.dueToday}</span>
+            <span className="copilot-stat-label">cards due</span>
+          </div>
+        )}
+        {daysUntil === null && !stats && (
+          <div className="copilot-stat-hint">
+            Set your exam date in the account menu for a countdown
+          </div>
+        )}
+      </div>
+
       {!plan && !loading && (
         <div className="study-plan-empty">
           <h3>What Should I Study Tonight?</h3>
@@ -138,8 +250,8 @@ export function StudyPlan({
           </p>
           <button
             className="btn btn-primary"
-            onClick={onGenerate}
-            disabled={disabled}
+            onClick={handleGenerate}
+            disabled={disabled || !connected}
           >
             Generate Study Plan
           </button>
@@ -150,6 +262,15 @@ export function StudyPlan({
         <div className="loading">
           <div className="spinner" />
           <p>Analyzing your Anki stats and generating a plan...</p>
+        </div>
+      )}
+
+      {error && (
+        <div className="error-banner">
+          <strong>Error:</strong> {error}
+          <button className="btn btn-ghost btn-sm" onClick={() => setError(null)}>
+            Dismiss
+          </button>
         </div>
       )}
 
@@ -166,8 +287,8 @@ export function StudyPlan({
           </div>
           <button
             className="btn btn-ghost"
-            onClick={onGenerate}
-            disabled={disabled || loading}
+            onClick={handleGenerate}
+            disabled={disabled || loading || !connected}
           >
             Regenerate Plan
           </button>

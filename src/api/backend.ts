@@ -1,7 +1,6 @@
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
 
 const TOKEN_KEY = "ollopa-token";
-const ANON_USAGE_KEY = "ollopa-anon-usage";
 
 // ── Token management ──
 
@@ -15,36 +14,6 @@ export function setToken(token: string): void {
 
 export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY);
-}
-
-// ── Anonymous usage tracking (for users who haven't logged in) ──
-
-interface AnonUsage {
-  date: string;
-  count: number;
-}
-
-function getAnonUsage(): AnonUsage {
-  try {
-    const raw = localStorage.getItem(ANON_USAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      const today = new Date().toISOString().split("T")[0];
-      if (parsed.date === today) return parsed;
-    }
-  } catch {}
-  return { date: new Date().toISOString().split("T")[0], count: 0 };
-}
-
-function incrementAnonUsage(): AnonUsage {
-  const usage = getAnonUsage();
-  usage.count++;
-  localStorage.setItem(ANON_USAGE_KEY, JSON.stringify(usage));
-  return usage;
-}
-
-export function getSmartSearchesUsedToday(): number {
-  return getAnonUsage().count;
 }
 
 export const FREE_DAILY_LIMIT = 3;
@@ -160,11 +129,6 @@ export async function serverSmartSearch(
   questionText: string,
   candidates: { cardId: number; text: string; tags: string[] }[]
 ): Promise<SmartSearchResponse> {
-  // Track anonymous usage if not logged in
-  if (!getToken()) {
-    incrementAnonUsage();
-  }
-
   return apiFetch<SmartSearchResponse>("/smart-search", {
     method: "POST",
     body: JSON.stringify({ questionText, candidates }),

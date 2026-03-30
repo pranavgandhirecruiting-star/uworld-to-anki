@@ -4,7 +4,9 @@ const LEGACY_KEY = "uworld-to-anki-sessions";
 export interface Session {
   id: string;
   timestamp: number;
+  mode: "qid" | "smart";
   qids: string[];
+  questionText?: string;
   totalCardsFound: number;
   cardsUnsuspended: number;
 }
@@ -21,7 +23,9 @@ export function getSessions(): Session[] {
       }
     }
     if (!raw) return [];
-    return JSON.parse(raw);
+    const sessions = JSON.parse(raw) as Session[];
+    // Backfill mode for legacy sessions that don't have it
+    return sessions.map(s => ({ ...s, mode: s.mode || "qid" }));
   } catch {
     return [];
   }

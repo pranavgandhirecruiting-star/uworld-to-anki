@@ -2,11 +2,10 @@ import { FREE_DAILY_LIMIT } from "../api/backend";
 
 interface Props {
   isLoggedIn: boolean;
-  onLogin: () => void;
   onUpgrade: () => void;
 }
 
-export function UpgradePrompt({ isLoggedIn, onLogin, onUpgrade }: Props) {
+export function UpgradePrompt({ isLoggedIn, onUpgrade }: Props) {
   return (
     <div className="upgrade-prompt">
       <div className="upgrade-prompt-header">
@@ -14,20 +13,9 @@ export function UpgradePrompt({ isLoggedIn, onLogin, onUpgrade }: Props) {
         today
       </div>
       {!isLoggedIn ? (
-        <>
-          <p>
-            Sign in to get {FREE_DAILY_LIMIT} free searches every day, or
-            upgrade to Pro for unlimited.
-          </p>
-          <div className="upgrade-prompt-actions">
-            <button className="btn btn-primary" onClick={onLogin}>
-              Sign in with Google
-            </button>
-            <button className="btn btn-ghost" onClick={onUpgrade}>
-              Learn about Pro
-            </button>
-          </div>
-        </>
+        <p>
+          Sign in above to get {FREE_DAILY_LIMIT} free Smart Searches daily.
+        </p>
       ) : (
         <>
           <p>Upgrade to Pro for unlimited Smart Searches and Study Plans.</p>

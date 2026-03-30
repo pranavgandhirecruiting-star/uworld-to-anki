@@ -7,7 +7,6 @@ import { Results } from "./components/Results";
 import { SmartResults } from "./components/SmartResults";
 import { ExplanationPanel } from "./components/ExplanationPanel";
 import { SessionHistory } from "./components/SessionHistory";
-import { Settings } from "./components/Settings";
 import { AuthBar } from "./components/AuthBar";
 import { UpgradePrompt } from "./components/UpgradePrompt";
 import { StudyPlan } from "./components/StudyPlan";
@@ -22,11 +21,9 @@ import {
   createCheckout,
   type UserProfile,
   type UsageInfo,
-  type StudyPlanResponse,
   FREE_DAILY_LIMIT,
-  getSmartSearchesUsedToday,
 } from "./api/backend";
-import { saveSession } from "./utils/sessionHistory";
+import { saveSession, type Session } from "./utils/sessionHistory";
 import "./App.css";
 
 type SearchMode = "qid" | "smart" | "plan";
@@ -37,13 +34,11 @@ function App() {
   const [results, setResults] = useState<QIDResult[] | null>(null);
   const [smartResults, setSmartResults] = useState<SmartSearchResult[] | null>(null);
   const [explanation, setExplanation] = useState<QuestionExplanation | null>(null);
-  const [studyPlan, setStudyPlan] = useState<StudyPlanResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastQIDs, setLastQIDs] = useState<string[]>([]);
   const [historyKey, setHistoryKey] = useState(0);
   const [inputOverride, setInputOverride] = useState<string | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [atLimit, setAtLimit] = useState(false);
 
   // Auth state
@@ -104,6 +99,7 @@ function App() {
 
       saveSession({
         timestamp: Date.now(),
+        mode: "qid",
         qids,
         totalCardsFound: res.reduce((s, r) => s + r.totalCount, 0),
         cardsUnsuspended: 0,
@@ -150,13 +146,19 @@ function App() {
     []
   );
 
-  const handleLoadQIDs = useCallback((qids: string[]) => {
-    setMode("qid");
-    setInputOverride(qids.join(", "));
+  const handleLoadSession = useCallback((session: Session) => {
+    if (session.mode === "smart" && session.questionText) {
+      // For smart search sessions, switch to smart mode
+      // The user can re-paste or we could pre-fill, but for now just switch mode
+      setMode("smart");
+    } else {
+      // QID session — load QIDs into input
+      setMode("qid");
+      setInputOverride(session.qids.join(", "));
+    }
     setResults(null);
     setSmartResults(null);
     setExplanation(null);
-    setStudyPlan(null);
     setAtLimit(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
@@ -166,26 +168,16 @@ function App() {
     setResults(null);
     setSmartResults(null);
     setExplanation(null);
-    setStudyPlan(null);
     setError(null);
     setAtLimit(false);
   };
 
-  const handleGenerateStudyPlan = useCallback(async () => {
-    // Study plan generation will be implemented when connected to backend
-    // For now, show a placeholder
-    setError("Study Plan requires a backend connection. Coming soon!");
-  }, []);
-
   const isLoggedIn = !!user;
   const isPro = user?.plan === "pro";
 
-  // Check if smart search should be blocked
+  // Smart search blocked: logged-in free user over limit
   const smartSearchBlocked =
-    !isPro &&
-    (isLoggedIn
-      ? (usage?.smartSearches ?? 0) >= FREE_DAILY_LIMIT
-      : getSmartSearchesUsedToday() >= FREE_DAILY_LIMIT);
+    !isPro && isLoggedIn && (usage?.smartSearches ?? 0) >= FREE_DAILY_LIMIT;
 
   return (
     <div className="app">
@@ -195,25 +187,18 @@ function App() {
             <Logo size={36} />
             <h1>O<span className="brand-ll">ll</span>opa</h1>
           </div>
-          <button
-            className="btn btn-ghost settings-btn"
-            onClick={() => setSettingsOpen(true)}
-            title="Settings"
-          >
-            Settings
-          </button>
+          <AuthBar
+            user={user}
+            usage={usage}
+            connected={!!connected}
+            onLogin={handleLogin}
+            onLogout={handleLogout}
+            onUpgrade={handleUpgrade}
+            onError={(msg) => setError(msg)}
+          />
         </div>
         <p className="subtitle">A Learner's Best Friend</p>
       </header>
-
-      <AuthBar
-        user={user}
-        usage={usage}
-        onLogin={handleLogin}
-        onLogout={handleLogout}
-        onUpgrade={handleUpgrade}
-        onError={(msg) => setError(msg)}
-      />
 
       <ConnectionStatus
         connected={connected}
@@ -238,7 +223,7 @@ function App() {
           className={`mode-tab ${mode === "plan" ? "active" : ""}`}
           onClick={() => handleModeSwitch("plan")}
         >
-          Study Plan {!isPro && "Pro"}
+          Study Co-Pilot {!isPro && <span className="tab-badge-pro">Pro</span>}
         </button>
       </div>
 
@@ -249,10 +234,21 @@ function App() {
             onSubmit={handleQIDSubmit}
             loading={loading}
             disabled={!connected}
+            initialValue={inputOverride || undefined}
           />
         )}
 
-        {mode === "smart" && !atLimit && (
+        {mode === "smart" && !isLoggedIn && (
+          <div className="smart-signin-prompt">
+            <h3>Smart Search</h3>
+            <p>
+              Paste any practice question and AI will find the matching Anki cards in your deck.
+            </p>
+            <p className="smart-signin-hint">Sign in above to get started — 3 free searches daily.</p>
+          </div>
+        )}
+
+        {mode === "smart" && isLoggedIn && !atLimit && (
           <SmartSearch
             onResults={handleSmartResults}
             loading={loading}
@@ -265,21 +261,17 @@ function App() {
         {mode === "smart" && atLimit && (
           <UpgradePrompt
             isLoggedIn={isLoggedIn}
-            onLogin={() => {}}
             onUpgrade={handleUpgrade}
           />
         )}
 
         {mode === "plan" && (
           <StudyPlan
-            plan={studyPlan}
-            loading={loading}
-            onGenerate={handleGenerateStudyPlan}
             isPro={isPro}
             isLoggedIn={isLoggedIn}
             onUpgrade={handleUpgrade}
-            onLogin={() => {}}
             disabled={!connected}
+            connected={!!connected}
           />
         )}
 
@@ -320,7 +312,7 @@ function App() {
         {mode !== "plan" && (
           <SessionHistory
             refreshKey={historyKey}
-            onLoadQIDs={handleLoadQIDs}
+            onLoadSession={handleLoadSession}
           />
         )}
       </main>
@@ -332,8 +324,6 @@ function App() {
           is stored or transmitted.
         </p>
       </footer>
-
-      <Settings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }

@@ -4,7 +4,6 @@ import {
   extractMedicalConcepts,
   matchCardsToQuestion,
   explainQuestion,
-  getApiKey,
   type QuestionExplanation,
 } from "../api/claude";
 
@@ -33,16 +32,9 @@ export function SmartSearch({
   const [input, setInput] = useState("");
   const [status, setStatus] = useState("");
 
-  const hasApiKey = !!getApiKey();
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || disabled || loading) return;
-
-    if (!hasApiKey) {
-      onError("No API key set. Open Settings (gear icon) to add your Anthropic API key.");
-      return;
-    }
 
     setLoading(true);
     onError("");
@@ -154,11 +146,6 @@ export function SmartSearch({
       <label htmlFor="smart-textarea">
         Paste a question you missed (from any qbank)
       </label>
-      {!hasApiKey && (
-        <div className="smart-search-warning">
-          Requires an Anthropic API key. Click the Settings button above to add one.
-        </div>
-      )}
       <textarea
         id="smart-textarea"
         value={input}
@@ -186,7 +173,7 @@ export function SmartSearch({
           <button
             type="submit"
             className="btn btn-primary"
-            disabled={!input.trim() || disabled || loading || !hasApiKey}
+            disabled={!input.trim() || disabled || loading}
           >
             {loading ? "Matching..." : "Find Matching Cards"}
           </button>

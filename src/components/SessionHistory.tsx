@@ -16,12 +16,17 @@ function formatDate(timestamp: number): string {
   return date.toLocaleDateString();
 }
 
-interface Props {
-  refreshKey: number;
-  onLoadQIDs: (qids: string[]) => void;
+function truncate(text: string, max: number): string {
+  if (text.length <= max) return text;
+  return text.slice(0, max) + "...";
 }
 
-export function SessionHistory({ refreshKey, onLoadQIDs }: Props) {
+interface Props {
+  refreshKey: number;
+  onLoadSession: (session: Session) => void;
+}
+
+export function SessionHistory({ refreshKey, onLoadSession }: Props) {
   const [showAll, setShowAll] = useState(false);
   // refreshKey forces re-read from localStorage
   void refreshKey;
@@ -52,17 +57,27 @@ export function SessionHistory({ refreshKey, onLoadQIDs }: Props) {
           <div key={session.id} className="history-item">
             <div className="history-item-main">
               <span className="history-time">{formatDate(session.timestamp)}</span>
-              <span className="history-qids">
-                {session.qids.length} QID{session.qids.length === 1 ? "" : "s"}
-              </span>
+              {session.mode === "smart" && session.questionText ? (
+                <span className="history-qids history-smart-label">
+                  Smart: {truncate(session.questionText, 40)}
+                </span>
+              ) : (
+                <span className="history-qids">
+                  {session.qids.length} QID{session.qids.length === 1 ? "" : "s"}
+                </span>
+              )}
               <span className="history-cards">
-                {session.totalCardsFound} found, {session.cardsUnsuspended} unsuspended
+                {session.totalCardsFound} found
               </span>
             </div>
             <button
               className="btn btn-ghost btn-sm"
-              onClick={() => onLoadQIDs(session.qids)}
-              title={`Load QIDs: ${session.qids.join(", ")}`}
+              onClick={() => onLoadSession(session)}
+              title={
+                session.mode === "smart"
+                  ? "Reuse this smart search"
+                  : `Load QIDs: ${session.qids.join(", ")}`
+              }
             >
               Reuse
             </button>

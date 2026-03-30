@@ -20,7 +20,8 @@
   position: relative;
 }
 
-.settings-btn {
+/* ── Header Auth (right side) ── */
+.header-auth {
   position: absolute;
   right: 0;
   top: 50%;
@@ -1057,3 +1058,178 @@
 
 .plan-action-text { font-size: 0.82rem; color: var(--text); }
 .plan-done { font-size: 0.78rem; color: var(--success); font-weight: 500; }
+
+/* ── Auth Dropdown ── */
+.auth-dropdown-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dropdown-arrow {
+  font-size: 0.6rem;
+  color: var(--text);
+}
+
+.auth-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 240px;
+  background: var(--card-bg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  z-index: 50;
+  padding: 4px 0;
+}
+
+.dropdown-section {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dropdown-section-last {
+  border-bottom: none;
+}
+
+.dropdown-email {
+  font-size: 0.78rem;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.dropdown-usage {
+  font-size: 0.72rem;
+  color: var(--text);
+  opacity: 0.7;
+}
+
+.dropdown-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.dropdown-date-input {
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  padding: 5px 8px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text-h);
+  width: 100%;
+}
+
+.dropdown-date-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-bg);
+}
+
+.dropdown-status {
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.dropdown-status.connected { color: var(--success); }
+.dropdown-status.disconnected { color: var(--danger); }
+
+.dropdown-upgrade {
+  width: 100%;
+}
+
+/* ── Tab Badge ── */
+.tab-badge-pro {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(124, 58, 237, 0.12);
+  color: var(--accent);
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+/* ── Smart Search Sign-in Prompt ── */
+.smart-signin-prompt {
+  text-align: center;
+  padding: 40px 24px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+}
+
+.smart-signin-prompt h3 {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+}
+
+.smart-signin-prompt p {
+  color: var(--text);
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+}
+
+.smart-signin-hint {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+/* ── Study Co-Pilot Stats Bar ── */
+.copilot-stats-bar {
+  display: flex;
+  gap: 20px;
+  padding: 14px 18px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+.copilot-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 60px;
+}
+
+.copilot-stat-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-h);
+  line-height: 1;
+}
+
+.copilot-stat-label {
+  font-size: 0.68rem;
+  color: var(--text);
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.copilot-stat-hint {
+  font-size: 0.78rem;
+  color: var(--text);
+  opacity: 0.7;
+}
+
+.study-plan-cta {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+/* ── Smart Search Session Label ── */
+.history-smart-label {
+  color: var(--accent);
+  font-style: italic;
+}
