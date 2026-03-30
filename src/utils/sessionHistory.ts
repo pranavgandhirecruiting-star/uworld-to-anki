@@ -1,4 +1,5 @@
-const STORAGE_KEY = "uworld-to-anki-sessions";
+const STORAGE_KEY = "ollopa-sessions";
+const LEGACY_KEY = "uworld-to-anki-sessions";
 
 export interface Session {
   id: string;
@@ -10,7 +11,15 @@ export interface Session {
 
 export function getSessions(): Session[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    let raw = localStorage.getItem(STORAGE_KEY);
+    // Migrate from old key if needed
+    if (!raw) {
+      raw = localStorage.getItem(LEGACY_KEY);
+      if (raw) {
+        localStorage.setItem(STORAGE_KEY, raw);
+        localStorage.removeItem(LEGACY_KEY);
+      }
+    }
     if (!raw) return [];
     return JSON.parse(raw);
   } catch {

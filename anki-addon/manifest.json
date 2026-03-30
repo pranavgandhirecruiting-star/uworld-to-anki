@@ -1,5 +1,5 @@
 {
-    "package": "uworld_to_anki",
-    "name": "UWorld to Anki",
-    "conflicts": []
+    "package": "ollopa",
+    "name": "Ollopa",
+    "conflicts": ["uworld_to_anki"]
 }

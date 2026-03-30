@@ -1,7 +1,7 @@
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
 
-const TOKEN_KEY = "uworld-to-anki-token";
-const ANON_USAGE_KEY = "uworld-to-anki-anon-usage";
+const TOKEN_KEY = "ollopa-token";
+const ANON_USAGE_KEY = "ollopa-anon-usage";
 
 // ── Token management ──
 

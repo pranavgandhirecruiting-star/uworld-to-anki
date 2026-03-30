@@ -127,22 +127,34 @@ export function ExplanationPanel({ explanation }: Props) {
         setHoveredTerm(term);
         setHoveredRect(rect);
       } else {
-        // Dismiss after a short delay (prevents flicker when moving between terms)
+        // Dismiss quickly — 80ms prevents flicker between adjacent terms
+        // but is short enough that the tooltip reliably disappears
         dismissTimer.current = setTimeout(() => {
           setHoveredTerm(null);
           setHoveredRect(null);
-        }, 150);
+          dismissTimer.current = null;
+        }, 80);
       }
     },
     []
   );
+
+  // Also dismiss on mouse leaving the entire explanation panel
+  const handlePanelMouseLeave = useCallback(() => {
+    if (dismissTimer.current) {
+      clearTimeout(dismissTimer.current);
+    }
+    // Immediate dismiss when leaving the panel entirely
+    setHoveredTerm(null);
+    setHoveredRect(null);
+  }, []);
 
   const H = ({ text }: { text: string }) => (
     <HighlightedText text={text} glossary={glossary} onHover={handleHover} />
   );
 
   return (
-    <div className="explanation-panel">
+    <div className="explanation-panel" onMouseLeave={handlePanelMouseLeave}>
       <div
         className="explanation-header"
         onClick={() => setCollapsed(!collapsed)}

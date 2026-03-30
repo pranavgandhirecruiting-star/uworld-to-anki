@@ -1,5 +1,12 @@
-const STORAGE_KEY_API = "uworld-to-anki-api-key";
-const STORAGE_KEY_MODEL = "uworld-to-anki-model";
+// Migrate from old localStorage keys
+if (!localStorage.getItem("ollopa-api-key") && localStorage.getItem("uworld-to-anki-api-key")) {
+  localStorage.setItem("ollopa-api-key", localStorage.getItem("uworld-to-anki-api-key")!);
+  const oldModel = localStorage.getItem("uworld-to-anki-model");
+  if (oldModel) localStorage.setItem("ollopa-model", oldModel);
+}
+
+const STORAGE_KEY_API = "ollopa-api-key";
+const STORAGE_KEY_MODEL = "ollopa-model";
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 

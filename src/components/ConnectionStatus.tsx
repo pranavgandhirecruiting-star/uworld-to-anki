@@ -29,12 +29,12 @@ export function ConnectionStatus({ connected, checking, onRetry }: Props) {
       <div className="connection-help">
         <strong>Can't reach Anki</strong>
         <p>
-          This page is served by the UWorld → Anki add-on inside Anki.
+          This page is served by the Ollopa add-on inside Anki.
           If you're seeing this, Anki may not be running or the add-on
           isn't loaded.
         </p>
         <p>
-          Open Anki and go to <strong>Tools → UWorld → Anki</strong> to
+          Open Anki and go to <strong>Tools → Ollopa</strong> to
           relaunch this page.
         </p>
         <button className="btn btn-sm" onClick={onRetry}>
