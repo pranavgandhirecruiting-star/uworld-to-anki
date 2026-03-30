@@ -14,7 +14,7 @@ from aqt.utils import showInfo, qconnect
 
 from .server import BIND_ADDRESS, BIND_PORT, WebServer
 
-URL = "https://uworld-to-anki.vercel.app"
+URL = f"http://{BIND_ADDRESS}:{BIND_PORT}"
 
 
 def api_handler(request):
