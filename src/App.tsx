@@ -66,32 +66,10 @@ function App() {
     }
   }, []);
 
-  const handleLogin = useCallback(() => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (!clientId) {
-      setError("Google Sign-In is not configured. Contact support.");
-      return;
-    }
-    const google = (window as any).google;
-    if (!google?.accounts?.id) {
-      setError("Google Sign-In failed to load. Please refresh and try again.");
-      return;
-    }
-    google.accounts.id.initialize({
-      client_id: clientId,
-      callback: async (response: { credential: string }) => {
-        try {
-          const { loginWithGoogle } = await import("./api/backend");
-          const { user, usage } = await loginWithGoogle(response.credential);
-          setUser(user);
-          setUsage(usage);
-          setError(null);
-        } catch (err) {
-          setError(err instanceof Error ? err.message : "Sign-in failed. Please try again.");
-        }
-      },
-    });
-    google.accounts.id.prompt();
+  const handleLogin = useCallback((user: UserProfile, usage: UsageInfo) => {
+    setUser(user);
+    setUsage(usage);
+    setError(null);
   }, []);
 
   const handleLogout = useCallback(() => {
@@ -234,6 +212,7 @@ function App() {
         onLogin={handleLogin}
         onLogout={handleLogout}
         onUpgrade={handleUpgrade}
+        onError={(msg) => setError(msg)}
       />
 
       <ConnectionStatus
@@ -286,7 +265,7 @@ function App() {
         {mode === "smart" && atLimit && (
           <UpgradePrompt
             isLoggedIn={isLoggedIn}
-            onLogin={handleLogin}
+            onLogin={() => {}}
             onUpgrade={handleUpgrade}
           />
         )}
@@ -299,7 +278,7 @@ function App() {
             isPro={isPro}
             isLoggedIn={isLoggedIn}
             onUpgrade={handleUpgrade}
-            onLogin={handleLogin}
+            onLogin={() => {}}
             disabled={!connected}
           />
         )}
