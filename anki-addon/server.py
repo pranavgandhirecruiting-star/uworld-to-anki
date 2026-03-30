@@ -184,6 +184,7 @@ class WebClient:
             "Access-Control-Allow-Origin: *\r\n"
             "Access-Control-Allow-Methods: POST, OPTIONS\r\n"
             "Access-Control-Allow-Headers: Content-Type\r\n"
+            "Access-Control-Allow-Private-Network: true\r\n"
             "\r\n"
         ).encode("utf-8")
         return headers + body
@@ -194,6 +195,7 @@ class WebClient:
             "Access-Control-Allow-Origin: *\r\n"
             "Access-Control-Allow-Methods: POST, GET, OPTIONS\r\n"
             "Access-Control-Allow-Headers: Content-Type\r\n"
+            "Access-Control-Allow-Private-Network: true\r\n"
             "Access-Control-Max-Age: 86400\r\n"
             "\r\n"
         ).encode("utf-8")
