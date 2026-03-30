@@ -8,6 +8,16 @@ const router = Router();
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
+const BETA_EMAILS = new Set(
+  (process.env.BETA_EMAILS || "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean)
+);
+
+function effectivePlan(email: string, dbPlan: string): "free" | "pro" {
+  if (dbPlan === "pro") return "pro";
+  if (BETA_EMAILS.has(email.toLowerCase())) return "pro";
+  return "free";
+}
+
 // Exchange Google ID token for JWT
 router.post("/google", async (req, res) => {
   const { credential } = req.body;
@@ -40,10 +50,12 @@ router.post("/google", async (req, res) => {
       },
     });
 
+    const plan = effectivePlan(user.email, user.plan);
+
     const token = signToken({
       id: user.id,
       email: user.email,
-      plan: user.plan,
+      plan,
     });
 
     // Get today's usage
@@ -58,7 +70,7 @@ router.post("/google", async (req, res) => {
         id: user.id,
         email: user.email,
         name: user.name,
-        plan: user.plan,
+        plan,
       },
       usage: {
         smartSearches: usage?.smartSearches ?? 0,
@@ -86,12 +98,14 @@ router.get("/me", requireAuth, async (req: AuthRequest, res) => {
     where: { userId_date: { userId, date: today } },
   });
 
+  const plan = effectivePlan(user.email, user.plan);
+
   res.json({
     user: {
       id: user.id,
       email: user.email,
       name: user.name,
-      plan: user.plan,
+      plan,
     },
     usage: {
       smartSearches: usage?.smartSearches ?? 0,
