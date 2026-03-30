@@ -8,10 +8,22 @@ import billingRoutes from "./routes/billing.js";
 const app = express();
 const PORT = parseInt(process.env.PORT || "3001");
 
-// CORS — allow frontend origin
+// CORS — allow frontend origin (Vercel) and local add-on server
+const allowedOrigins = [
+  process.env.FRONTEND_URL || "http://localhost:5173",
+  "http://127.0.0.1:28735",
+  "http://localhost:28735",
+];
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. curl, Postman)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS: origin ${origin} not allowed`));
+      }
+    },
     credentials: true,
   })
 );
