@@ -1,20 +1,33 @@
 :root {
   --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
+  --text-h: #1a1523;
+  --bg: #faf9fb;
+  --card-bg: #ffffff;
+  --border: #e8e5ec;
+  --code-bg: #f3f1f6;
   --accent: #7c3aed;
-  --accent-bg: rgba(124, 58, 237, 0.08);
-  --accent-border: rgba(124, 58, 237, 0.25);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow: rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  --accent-light: #a78bfa;
+  --accent-bg: rgba(124, 58, 237, 0.06);
+  --accent-border: rgba(124, 58, 237, 0.18);
+  --warm: #f5e6d3;
+  --warm-border: #e8d5c0;
+  --success: #16a34a;
+  --success-bg: rgba(22, 163, 74, 0.06);
+  --danger: #dc2626;
+  --danger-bg: rgba(220, 38, 38, 0.05);
+  --warning: #d97706;
+  --warning-bg: rgba(217, 119, 6, 0.06);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
+  --radius: 12px;
+  --radius-sm: 8px;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  --sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --heading: 'Inter', system-ui, -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
 
-  font: 16px/1.5 var(--sans);
+  font: 15px/1.6 var(--sans);
   color-scheme: light dark;
   color: var(--text);
   background: var(--bg);
@@ -26,15 +39,18 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #111118;
-    --border: #2e303a;
-    --code-bg: #1f2028;
+    --text: #a8a0b4;
+    --text-h: #f0ecf4;
+    --bg: #0f0d14;
+    --card-bg: #1a1722;
+    --border: #2a2635;
+    --code-bg: #1e1b28;
     --accent: #a78bfa;
-    --accent-bg: rgba(167, 139, 250, 0.1);
-    --accent-border: rgba(167, 139, 250, 0.3);
-    --social-bg: rgba(47, 48, 58, 0.5);
+    --accent-light: #c4b5fd;
+    --accent-bg: rgba(167, 139, 250, 0.08);
+    --accent-border: rgba(167, 139, 250, 0.2);
+    --warm: #2a2420;
+    --warm-border: #3d3530;
   }
 }
 
@@ -49,6 +65,7 @@ body {
 h1, h2, h3 {
   font-family: var(--heading);
   color: var(--text-h);
+  letter-spacing: -0.02em;
 }
 
 a {
@@ -62,7 +79,7 @@ a:hover {
 
 code {
   font-family: var(--mono);
-  font-size: 0.85em;
+  font-size: 0.82em;
   padding: 2px 6px;
   border-radius: 4px;
   background: var(--code-bg);
