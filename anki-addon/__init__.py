@@ -1,5 +1,5 @@
 """
-UWorld to Anki — Paste QIDs, find cards, unsuspend, study.
+Ollopa — A Learner's Best Friend
 
 Embeds a local web server inside Anki that serves a React UI
 and exposes API endpoints for card lookup and management.
@@ -14,7 +14,7 @@ from aqt.utils import showInfo, qconnect
 
 from .server import BIND_ADDRESS, BIND_PORT, WebServer
 
-URL = f"http://{BIND_ADDRESS}:{BIND_PORT}"
+URL = "https://uworld-to-anki.vercel.app"
 
 
 def api_handler(request):
@@ -270,7 +270,7 @@ def start_server():
         _server.listen()
     except OSError as e:
         showInfo(
-            f"UWorld → Anki: Could not start server on port {BIND_PORT}.\n"
+            f"Ollopa: Could not start server on port {BIND_PORT}.\n"
             f"Another instance may already be running.\n\n"
             f"Error: {e}"
         )
@@ -295,9 +295,9 @@ def stop_server():
 
 
 def open_browser():
-    """Open the UWorld → Anki UI in the default browser."""
+    """Open the Ollopa UI in the default browser."""
     if _server is None:
-        showInfo("UWorld → Anki server is not running. Please restart Anki.")
+        showInfo("Ollopa server is not running. Please restart Anki.")
         return
     webbrowser.open(URL)
 
@@ -308,7 +308,7 @@ def on_profile_loaded():
     start_server()
 
     # Add menu item
-    action = QAction("UWorld → Anki", mw)
+    action = QAction("Ollopa", mw)
     qconnect(action.triggered, open_browser)
     mw.form.menuTools.addAction(action)
 
