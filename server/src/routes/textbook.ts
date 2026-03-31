@@ -35,7 +35,7 @@ router.post("/chunk", requireAuth, async (req: AuthRequest, res) => {
       .join("\n\n");
 
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 8192,
       system: `You are a medical education expert processing a medical textbook (likely First Aid for the USMLE Step 1).
 

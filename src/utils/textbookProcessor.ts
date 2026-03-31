@@ -98,13 +98,14 @@ export async function processTextbook(file: File): Promise<void> {
     // Phase 3: Batch and send to Claude
     const batches = batchPages(pages, 15);
     const allConcepts: any[] = [];
-    const CONCURRENCY = 5;
+    const CONCURRENCY = 2; // Keep low to avoid API rate limits
+    const DELAY_MS = 5000; // 5s pause between rounds to stay under token/min limits
     let completed = 0;
 
     setState({
       phase: "chunking",
       message: `Analyzing content with AI...`,
-      detail: `0/${batches.length} batches — sending ${CONCURRENCY} at a time`,
+      detail: `0/${batches.length} batches`,
       progress: 35,
       conceptCount: 0,
     });
@@ -121,14 +122,20 @@ export async function processTextbook(file: File): Promise<void> {
       completed += chunk.length;
 
       const pct = 35 + Math.round((completed / batches.length) * 55);
-      const remaining = Math.round(((batches.length - completed) / CONCURRENCY) * 10);
+      const batchesLeft = batches.length - completed;
+      const estMinutes = Math.ceil((batchesLeft / CONCURRENCY) * (DELAY_MS / 1000 + 8) / 60);
       setState({
         phase: "chunking",
         message: `Analyzing content with AI...`,
-        detail: `${completed}/${batches.length} batches — ${allConcepts.length} concepts found${remaining > 0 ? ` (~${remaining}s left)` : ""}`,
+        detail: `${completed}/${batches.length} batches — ${allConcepts.length} concepts found${batchesLeft > 0 ? ` (~${estMinutes} min left)` : ""}`,
         progress: pct,
         conceptCount: allConcepts.length,
       });
+
+      // Rate limit pause between rounds (skip after last round)
+      if (start + CONCURRENCY < batches.length) {
+        await new Promise((r) => setTimeout(r, DELAY_MS));
+      }
     }
 
     // Phase 4: Save to IndexedDB
