@@ -70,14 +70,25 @@ export function TextbookUpload({ isPro, isLoggedIn, onUpgrade }: Props) {
         conceptCount: 0,
       });
 
-      for (let i = 0; i < batches.length; i++) {
-        const result = await chunkTextbookBatch(batches[i], i, batches.length);
-        allConcepts.push(...result.concepts);
+      // Process batches in parallel (5 at a time) for ~5x speedup
+      const CONCURRENCY = 5;
+      let completed = 0;
 
-        const pct = 40 + Math.round(((i + 1) / batches.length) * 55);
+      for (let start = 0; start < batches.length; start += CONCURRENCY) {
+        const chunk = batches.slice(start, start + CONCURRENCY);
+        const promises = chunk.map((batch, offset) =>
+          chunkTextbookBatch(batch, start + offset, batches.length)
+        );
+        const results = await Promise.all(promises);
+        for (const result of results) {
+          allConcepts.push(...result.concepts);
+        }
+        completed += chunk.length;
+
+        const pct = 40 + Math.round((completed / batches.length) * 55);
         setProcessing({
           phase: "chunking",
-          message: `Batch ${i + 1}/${batches.length} done — ${allConcepts.length} concepts found...`,
+          message: `${completed}/${batches.length} batches done — ${allConcepts.length} concepts found...`,
           progress: pct,
           conceptCount: allConcepts.length,
         });
