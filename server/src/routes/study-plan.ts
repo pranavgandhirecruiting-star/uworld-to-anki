@@ -18,7 +18,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
     return;
   }
 
-  const { ankiStats, recentTopics, examDate } = req.body;
+  const { ankiStats, recentActivity, recentTopics, examDate } = req.body;
 
   if (!ankiStats?.length) {
     res.status(400).json({ error: "ankiStats are required" });
@@ -28,7 +28,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
   try {
     const result = await generateStudyPlan(
       ankiStats,
-      recentTopics || [],
+      recentActivity || { topicSummary: [], recentQuestions: [] },
       examDate
     );
 

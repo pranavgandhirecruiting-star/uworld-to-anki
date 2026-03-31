@@ -101,10 +101,30 @@ function App() {
       const res = await lookupQIDs(qids);
       setResults(res);
 
+      // Extract topic tags from matched cards
+      const topics: string[] = [];
+      for (const qidResult of res) {
+        for (const card of qidResult.cards || []) {
+          for (const tag of card.tags || []) {
+            if (tag.startsWith("#AK_Step") && tag.includes("::")) {
+              const parts = tag.split("::");
+              if (parts.length >= 2) {
+                const topic = parts[1].replace(/_/g, " ");
+                if (topic && !topics.includes(topic) &&
+                    !["UWorld", "AMBOSS", "Pathoma", "Boards and Beyond", "SketchyMedical"].includes(topic)) {
+                  topics.push(topic);
+                }
+              }
+            }
+          }
+        }
+      }
+
       saveSession({
         timestamp: Date.now(),
         mode: "qid",
         qids,
+        topics,
         totalCardsFound: res.reduce((s, r) => s + r.totalCount, 0),
         cardsUnsuspended: 0,
       });
@@ -124,6 +144,7 @@ function App() {
       setExplanation(exp);
       setFirstAidConcepts(faConcepts);
       setResults(null);
+      setHistoryKey((k) => k + 1);
 
       // Update usage count after a search
       if (user) {
@@ -327,7 +348,7 @@ function App() {
 
         {mode === "smart" && smartResults && <SmartResults results={smartResults} />}
 
-        {mode !== "plan" && (
+        {(mode === "qid" || mode === "smart") && (
           <SessionHistory
             refreshKey={historyKey}
             onLoadSession={handleLoadSession}

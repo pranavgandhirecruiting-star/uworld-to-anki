@@ -156,7 +156,10 @@ IMPORTANT: Return ONLY the JSON object, no markdown fences, no other text.`,
 
 export async function generateStudyPlan(
   ankiStats: { topic: string; total: number; suspended: number; due: number; highLapse: number }[],
-  recentTopics: string[],
+  recentActivity: {
+    topicSummary: { topic: string; count: number }[];
+    recentQuestions: { question: string; topics: string[]; concepts: string[] }[];
+  },
   examDate?: string
 ): Promise<string> {
   const statsText = ankiStats
@@ -166,12 +169,29 @@ export async function generateStudyPlan(
     )
     .join("\n");
 
+  const topicSummaryText = recentActivity.topicSummary.length > 0
+    ? recentActivity.topicSummary
+        .slice(0, 15)
+        .map((t) => `${t.topic} (missed ${t.count}x)`)
+        .join(", ")
+    : "None recorded yet";
+
+  const recentQuestionsText = recentActivity.recentQuestions.length > 0
+    ? recentActivity.recentQuestions
+        .map((q) => {
+          const topicsStr = q.topics.length > 0 ? ` [${q.topics.join(", ")}]` : "";
+          const conceptsStr = q.concepts.length > 0 ? ` — Concepts: ${q.concepts.join(", ")}` : "";
+          return `- "${q.question.slice(0, 100)}..."${topicsStr}${conceptsStr}`;
+        })
+        .join("\n")
+    : "None recorded yet";
+
   const response = await client.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 2000,
     system: `You are a medical education expert creating a personalized study plan for a medical student preparing for board exams.
 
-Given the student's Anki card statistics by topic and their recently missed question topics, generate a prioritized 45-60 minute study plan for tonight.
+Given the student's Anki card statistics by topic, their frequently missed topics, and recent missed questions with extracted concepts, generate a prioritized 45-60 minute study plan for tonight.
 
 Return ONLY a JSON object with:
 - "sections": array of 3-5 objects, each with:
@@ -187,7 +207,7 @@ IMPORTANT: Return ONLY the JSON object, no markdown fences, no other text.`,
     messages: [
       {
         role: "user",
-        content: `## Anki Card Stats by Topic:\n${statsText}\n\n## Topics from recently missed questions:\n${recentTopics.join(", ") || "None recorded yet"}\n\n${examDate ? `## Exam date: ${examDate}` : ""}`,
+        content: `## Anki Card Stats by Topic:\n${statsText}\n\n## Topics frequently missed:\n${topicSummaryText}\n\n## Recent missed questions:\n${recentQuestionsText}\n\n${examDate ? `## Exam date: ${examDate}` : ""}`,
       },
     ],
   });

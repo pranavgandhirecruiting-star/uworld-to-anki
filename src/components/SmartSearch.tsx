@@ -5,6 +5,7 @@ import { type QuestionExplanation } from "../api/claude";
 import { getContextSummary, updateSessionContext } from "../utils/sessionContext";
 import { findRelevantConcepts } from "../utils/firstAidLookup";
 import { type FirstAidConcept, FIRST_AID_CONCEPTS } from "../data/firstAidConcepts";
+import { saveSession } from "../utils/sessionHistory";
 
 export interface SmartSearchResult {
   cardId: number;
@@ -148,6 +149,18 @@ export function SmartSearch({
         results,
         explanation,
         faConcepts: firstAidMatches,
+      });
+
+      // Save session to history with concepts and topics
+      saveSession({
+        timestamp: Date.now(),
+        mode: "smart",
+        qids: [],
+        questionText: input.trim(),
+        concepts,
+        topics: topicTags,
+        totalCardsFound: results.length,
+        cardsUnsuspended: 0,
       });
 
       setStatus("");

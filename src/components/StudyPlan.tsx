@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { searchCards, unsuspendCards } from "../api/ankiConnect";
 import { generateStudyPlan, type StudyPlanSection, type StudyPlanResponse } from "../api/backend";
-import { getSessions } from "../utils/sessionHistory";
+import { getSessions, getTopicSummary } from "../utils/sessionHistory";
 
 const EXAM_DATE_KEY = "ollopa-exam-date";
 
@@ -128,13 +128,17 @@ export function StudyPlan({
     setLoading(true);
     setError(null);
     try {
-      // Gather recent topics from session history
+      // Gather structured topic data from session history
+      const topicSummary = getTopicSummary();
       const sessions = getSessions();
-      const recentTopics = sessions
+      const recentQuestions = sessions
         .filter(s => s.mode === "smart" && s.questionText)
-        .slice(0, 5)
-        .map(s => s.questionText!)
-        .filter(Boolean);
+        .slice(0, 10)
+        .map(s => ({
+          question: s.questionText!.slice(0, 200),
+          topics: s.topics || [],
+          concepts: s.concepts || [],
+        }));
 
       const examDate = localStorage.getItem(EXAM_DATE_KEY) || undefined;
 
@@ -166,7 +170,7 @@ export function StudyPlan({
         ankiStats.push({ topic: "General Review", total: 0, suspended: 0, due: 0, highLapse: 0 });
       }
 
-      const result = await generateStudyPlan(ankiStats, recentTopics, examDate);
+      const result = await generateStudyPlan(ankiStats, { topicSummary, recentQuestions }, examDate);
       setPlan(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate study plan");
