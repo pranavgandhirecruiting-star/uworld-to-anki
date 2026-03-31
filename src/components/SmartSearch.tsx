@@ -31,10 +31,19 @@ export function SmartSearch({
   const [input, setInput] = useState("");
   const [status, setStatus] = useState("");
   const lastSearchRef = useRef<string>("");
+  const resultsCacheRef = useRef<Map<string, { results: SmartSearchResult[]; explanation: QuestionExplanation | null; faConcepts: FirstAidConcept[] }>>(new Map());
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || disabled || loading) return;
+
+    // Return cached results for repeated identical searches
+    const cacheKey = input.trim();
+    const cached = resultsCacheRef.current.get(cacheKey);
+    if (cached) {
+      onResults(cached.results, cached.explanation, cached.faConcepts);
+      return;
+    }
 
     setLoading(true);
     onError("");
@@ -127,6 +136,13 @@ export function SmartSearch({
         updateSessionContext(concepts, topicTags);
         lastSearchRef.current = input.trim();
       }
+
+      // Cache results for this question
+      resultsCacheRef.current.set(cacheKey, {
+        results,
+        explanation,
+        faConcepts: firstAidMatches,
+      });
 
       setStatus("");
       onResults(results, explanation, firstAidMatches);

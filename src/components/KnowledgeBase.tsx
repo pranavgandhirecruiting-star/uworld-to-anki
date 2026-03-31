@@ -89,33 +89,38 @@ export function KnowledgeBase({ isPro, isLoggedIn, onUpgrade }: Props) {
 
       {/* How it works */}
       <div className="kb-how-it-works">
-        <h4>How It Works</h4>
+        <h4>How the Knowledge Base Works</h4>
         <div className="kb-steps">
           <div className="kb-step">
             <span className="kb-step-num">1</span>
             <div>
-              <strong>You paste a question</strong>
-              <p>AI extracts the key medical concepts being tested.</p>
+              <strong>Concepts are pre-indexed</strong>
+              <p>
+                Each textbook is broken into discrete medical concepts — diseases,
+                mechanisms, drugs, differentials — each tagged with searchable keywords.
+              </p>
             </div>
           </div>
           <div className="kb-step">
             <span className="kb-step-num">2</span>
             <div>
-              <strong>Knowledge base is searched</strong>
+              <strong>Matched to your missed questions</strong>
               <p>
-                Concepts are matched against{" "}
-                {FIRST_AID_CONCEPTS.length + uploadedBooks.reduce((s, b) => s + b.conceptCount, 0)}+ entries
-                to find relevant high-yield facts.
+                When you run a Smart Search, the{" "}
+                {FIRST_AID_CONCEPTS.length + uploadedBooks.reduce((s, b) => s + b.conceptCount, 0)}+
+                indexed concepts are keyword-matched against the medical terms in your question.
+                The top matches surface as "High-Yield Review."
               </p>
             </div>
           </div>
           <div className="kb-step">
             <span className="kb-step-num">3</span>
             <div>
-              <strong>AI generates insights</strong>
+              <strong>Enriches AI analysis</strong>
               <p>
-                The matched knowledge is injected into the AI prompt, producing
-                richer explanations and more targeted card recommendations.
+                Matched concepts provide the AI with textbook-grounded context —
+                key teaching points, common traps, and differentials — so the
+                explanations and card recommendations are more targeted.
               </p>
             </div>
           </div>
