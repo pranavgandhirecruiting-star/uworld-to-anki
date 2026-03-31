@@ -98,8 +98,8 @@ export async function processTextbook(file: File): Promise<void> {
     // Phase 3: Batch and send to Claude
     const batches = batchPages(pages, 15);
     const allConcepts: any[] = [];
-    const CONCURRENCY = 2; // Keep low to avoid API rate limits
-    const DELAY_MS = 5000; // 5s pause between rounds to stay under token/min limits
+    const CONCURRENCY = 4; // ~37k tokens/round, well within Haiku's ~150k/min limit
+    const DELAY_MS = 5000; // 5s pause between rounds (~27 RPM, under 50 RPM limit)
     let completed = 0;
 
     setState({
