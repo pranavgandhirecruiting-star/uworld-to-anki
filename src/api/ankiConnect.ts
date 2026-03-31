@@ -122,6 +122,24 @@ export async function searchCards(query: string, limit = 200): Promise<SearchCar
   return invoke<SearchCardResult[]>("searchCards", { query, limit });
 }
 
+export async function getStudyStats(): Promise<{
+  topic: string;
+  total: number;
+  suspended: number;
+  due: number;
+  highLapse: number;
+  new: number;
+}[]> {
+  return invoke<{
+    topic: string;
+    total: number;
+    suspended: number;
+    due: number;
+    highLapse: number;
+    new: number;
+  }[]>("getStudyStats");
+}
+
 export interface QIDResult {
   qid: string;
   cardIds: number[];

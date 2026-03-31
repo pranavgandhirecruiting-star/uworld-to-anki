@@ -157,10 +157,11 @@ IMPORTANT: Return ONLY the JSON object, no markdown fences, no other text.`,
 export async function generateStudyPlan(
   ankiStats: { topic: string; total: number; suspended: number; due: number; highLapse: number }[],
   recentActivity: {
-    topicSummary: { topic: string; count: number }[];
+    topicSummary: { topic: string; count: number; weightedScore?: number }[];
     recentQuestions: { question: string; topics: string[]; concepts: string[] }[];
   },
-  examDate?: string
+  examDate?: string,
+  dismissedTopics?: string[]
 ): Promise<string> {
   const statsText = ankiStats
     .map(
@@ -172,7 +173,7 @@ export async function generateStudyPlan(
   const topicSummaryText = recentActivity.topicSummary.length > 0
     ? recentActivity.topicSummary
         .slice(0, 15)
-        .map((t) => `${t.topic} (missed ${t.count}x)`)
+        .map((t: any) => `${t.topic} (missed ${t.count}x, recent relevance: ${t.weightedScore ?? t.count})`)
         .join(", ")
     : "None recorded yet";
 
@@ -186,12 +187,24 @@ export async function generateStudyPlan(
         .join("\n")
     : "None recorded yet";
 
+  const ankiStatsText = ankiStats.length > 0
+    ? ankiStats
+        .map((s) => `${s.topic}: ${s.total} total, ${s.suspended} suspended, ${s.due} due, ${s.highLapse} high-lapse`)
+        .join("\n")
+    : "No Anki stats available";
+
+  const dismissedText = dismissedTopics && dismissedTopics.length > 0
+    ? `\n\nThe student has indicated they are confident in the following topics — do NOT include them in the plan: ${dismissedTopics.join(", ")}`
+    : "";
+
   const response = await client.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 2000,
     system: `You are a study co-pilot speaking directly to a medical student preparing for board exams. Address the student as "you" (second person), never "the student" or "they."
 
 Given the student's Anki card statistics, frequently missed topics, and recent missed questions, generate a prioritized 45-60 minute study plan for tonight.
+
+Topics with higher "recent relevance" scores were missed more recently (7-day half-life decay). Prioritize topics with high recent relevance over topics with high raw counts but low recent relevance (those are stale — the student may have already reviewed them).
 
 Be encouraging but honest. Reference specific topics they've been missing. Make the plan actionable.
 
@@ -205,11 +218,11 @@ Return ONLY a JSON object with:
   - "searchQuery": an Anki search query to find these cards (e.g., "tag:*Cardiology* is:due")
 - "summary": 1-2 sentence assessment using "you/your" — e.g., "You've been strong on cardiology but keep missing neurology concepts. Focus there tonight."
 
-IMPORTANT: Return ONLY the JSON object, no markdown fences, no other text. Always use second person ("you/your").`,
+IMPORTANT: Return ONLY the JSON object, no markdown fences, no other text. Always use second person ("you/your").${dismissedText}`,
     messages: [
       {
         role: "user",
-        content: `## Anki Card Stats by Topic:\n${statsText}\n\n## Topics frequently missed:\n${topicSummaryText}\n\n## Recent missed questions:\n${recentQuestionsText}\n\n${examDate ? `## Exam date: ${examDate}` : ""}`,
+        content: `## Anki Card Stats by Topic:\n${statsText}\n\n## Topics frequently missed (sorted by recent relevance):\n${topicSummaryText}\n\n## Anki Card Performance by Topic:\n${ankiStatsText}\n\nUse these Anki stats to validate the missed-topic data: if a topic was missed historically but now shows 0 high-lapse cards and few due cards, the student has likely reviewed and mastered it — deprioritize it. If a topic has high-lapse cards AND recent misses, it's a persistent weak spot — prioritize it.\n\n## Recent missed questions:\n${recentQuestionsText}\n\n${examDate ? `## Exam date: ${examDate}` : ""}`,
       },
     ],
   });

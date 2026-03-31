@@ -161,14 +161,15 @@ export async function generateStudyPlan(
     highLapse: number;
   }[],
   recentActivity: {
-    topicSummary: { topic: string; count: number }[];
+    topicSummary: { topic: string; count: number; weightedScore: number }[];
     recentQuestions: { question: string; topics: string[]; concepts: string[] }[];
   },
-  examDate?: string
+  examDate?: string,
+  dismissedTopics?: string[]
 ): Promise<StudyPlanResponse> {
   return apiFetch<StudyPlanResponse>("/study-plan", {
     method: "POST",
-    body: JSON.stringify({ ankiStats, recentActivity, examDate }),
+    body: JSON.stringify({ ankiStats, recentActivity, examDate, dismissedTopics }),
   });
 }
 

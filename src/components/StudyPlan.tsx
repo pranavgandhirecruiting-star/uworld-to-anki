@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { searchCards, unsuspendCards } from "../api/ankiConnect";
+import { searchCards, unsuspendCards, getStudyStats } from "../api/ankiConnect";
 import { generateStudyPlan, type StudyPlanSection, type StudyPlanResponse } from "../api/backend";
 import { getSessions, getTopicSummary } from "../utils/sessionHistory";
 
@@ -25,7 +25,7 @@ const priorityEmoji = {
   low: "\u{1F7E2}",
 };
 
-function PlanSection({ section }: { section: StudyPlanSection }) {
+function PlanSection({ section, onDismiss }: { section: StudyPlanSection; onDismiss: (topic: string) => void }) {
   const [acting, setActing] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -58,6 +58,13 @@ function PlanSection({ section }: { section: StudyPlanSection }) {
           <span className="plan-topic">{section.topic}</span>
           <span className="plan-reason">{section.reason}</span>
         </div>
+        <button
+          className="btn btn-ghost btn-sm plan-dismiss"
+          onClick={() => onDismiss(section.topic)}
+          title="Skip this topic"
+        >
+          Skip
+        </button>
       </div>
       <div className="plan-section-action">
         <span className="plan-action-text">{section.action}</span>
@@ -96,6 +103,15 @@ export function StudyPlan({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<StudyStats | null>(null);
+  const [dismissedTopics, setDismissedTopics] = useState<Set<string>>(new Set());
+
+  const handleDismiss = useCallback((topic: string) => {
+    setDismissedTopics(prev => {
+      const next = new Set(prev);
+      next.add(topic);
+      return next;
+    });
+  }, []);
 
   // Load Anki stats on mount when connected
   useEffect(() => {
@@ -130,6 +146,7 @@ export function StudyPlan({
     try {
       // Gather structured topic data from session history
       const topicSummary = getTopicSummary();
+      // topicSummary already sorted by weightedScore
       const sessions = getSessions();
       const recentQuestions = sessions
         .filter(s => s.mode === "smart" && s.questionText)
@@ -142,27 +159,38 @@ export function StudyPlan({
 
       const examDate = localStorage.getItem(EXAM_DATE_KEY) || undefined;
 
-      // Get some Anki stats to send to backend
-      const ankiStats: { topic: string; total: number; suspended: number; due: number; highLapse: number }[] = [];
+      // Get per-topic Anki stats from the add-on's getStudyStats endpoint
+      let ankiStats: { topic: string; total: number; suspended: number; due: number; highLapse: number }[] = [];
       try {
-        const dueCards = await searchCards("is:due", 100);
-        if (dueCards.length > 0) {
-          // Group by deck
-          const deckMap = new Map<string, { total: number; suspended: number; due: number }>();
-          for (const card of dueCards) {
-            const deck = card.deckName.split("::").slice(0, 2).join("::");
-            const entry = deckMap.get(deck) || { total: 0, suspended: 0, due: 0 };
-            entry.total++;
-            entry.due++;
-            if (card.queue === -1) entry.suspended++;
-            deckMap.set(deck, entry);
-          }
-          for (const [topic, data] of deckMap) {
-            ankiStats.push({ topic, ...data, highLapse: 0 });
-          }
-        }
+        const studyStatsResult = await getStudyStats();
+        ankiStats = studyStatsResult.map(s => ({
+          topic: s.topic,
+          total: s.total,
+          suspended: s.suspended,
+          due: s.due,
+          highLapse: s.highLapse,
+        }));
       } catch {
-        // If Anki stats fail, still try to generate with what we have
+        // Fall back to the old approach if getStudyStats is not available
+        try {
+          const dueCards = await searchCards("is:due", 100);
+          if (dueCards.length > 0) {
+            const deckMap = new Map<string, { total: number; suspended: number; due: number }>();
+            for (const card of dueCards) {
+              const deck = card.deckName.split("::").slice(0, 2).join("::");
+              const entry = deckMap.get(deck) || { total: 0, suspended: 0, due: 0 };
+              entry.total++;
+              entry.due++;
+              if (card.queue === -1) entry.suspended++;
+              deckMap.set(deck, entry);
+            }
+            for (const [topic, data] of deckMap) {
+              ankiStats.push({ topic, ...data, highLapse: 0 });
+            }
+          }
+        } catch {
+          // If Anki stats fail, still try to generate with what we have
+        }
       }
 
       if (ankiStats.length === 0) {
@@ -170,13 +198,14 @@ export function StudyPlan({
         ankiStats.push({ topic: "General Review", total: 0, suspended: 0, due: 0, highLapse: 0 });
       }
 
-      const result = await generateStudyPlan(ankiStats, { topicSummary, recentQuestions }, examDate);
+      const dismissed = dismissedTopics.size > 0 ? Array.from(dismissedTopics) : undefined;
+      const result = await generateStudyPlan(ankiStats, { topicSummary, recentQuestions }, examDate, dismissed);
       setPlan(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate study plan");
     }
     setLoading(false);
-  }, []);
+  }, [dismissedTopics]);
 
   // Not logged in
   if (!isLoggedIn) {
@@ -285,9 +314,20 @@ export function StudyPlan({
             <p className="plan-summary">{plan.summary}</p>
           )}
           <div className="plan-sections">
-            {plan.sections.map((section, i) => (
-              <PlanSection key={i} section={section} />
-            ))}
+            {plan.sections
+              .filter((section) => !dismissedTopics.has(section.topic))
+              .map((section, i) => (
+                <PlanSection key={i} section={section} onDismiss={handleDismiss} />
+              ))}
+            {dismissedTopics.size > 0 && (
+              <div className="plan-dismissed-list">
+                {Array.from(dismissedTopics).map((topic) => (
+                  <span key={topic} className="plan-dismissed-item">
+                    Skipped — {topic}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
           <button
             className="btn btn-ghost"

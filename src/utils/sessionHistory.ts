@@ -50,25 +50,37 @@ export function clearSessions(): void {
   localStorage.removeItem(STORAGE_KEY);
 }
 
-export function getTopicSummary(): { topic: string; count: number; lastSeen: number }[] {
+export function getTopicSummary(): { topic: string; count: number; weightedScore: number; lastSeen: number }[] {
   const sessions = getSessions();
-  const topicMap = new Map<string, { count: number; lastSeen: number }>();
+  const now = Date.now();
+  const HALF_LIFE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+  const topicMap = new Map<string, { rawCount: number; weightedScore: number; lastSeen: number }>();
 
   for (const session of sessions) {
     if (session.topics) {
+      // Calculate decay factor based on age
+      const ageMs = now - session.timestamp;
+      const decayFactor = Math.pow(0.5, ageMs / HALF_LIFE_MS);
+
       for (const topic of session.topics) {
         const existing = topicMap.get(topic);
         if (existing) {
-          existing.count++;
+          existing.rawCount++;
+          existing.weightedScore += decayFactor;
           existing.lastSeen = Math.max(existing.lastSeen, session.timestamp);
         } else {
-          topicMap.set(topic, { count: 1, lastSeen: session.timestamp });
+          topicMap.set(topic, { rawCount: 1, weightedScore: decayFactor, lastSeen: session.timestamp });
         }
       }
     }
   }
 
   return Array.from(topicMap.entries())
-    .map(([topic, data]) => ({ topic, ...data }))
-    .sort((a, b) => b.count - a.count);
+    .map(([topic, data]) => ({
+      topic,
+      count: data.rawCount,
+      weightedScore: Math.round(data.weightedScore * 100) / 100,
+      lastSeen: data.lastSeen,
+    }))
+    .sort((a, b) => b.weightedScore - a.weightedScore);
 }
