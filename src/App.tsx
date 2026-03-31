@@ -313,7 +313,7 @@ function App() {
           <FetchAnimation message="Sniffing out the best cards..." />
         )}
 
-        {results && (
+        {mode === "qid" && results && (
           <Results
             results={results}
             onUnsuspended={() => {}}
@@ -321,11 +321,11 @@ function App() {
           />
         )}
 
-        {explanation && <ExplanationPanel explanation={explanation} />}
+        {mode === "smart" && explanation && <ExplanationPanel explanation={explanation} />}
 
-        {firstAidConcepts.length > 0 && <FirstAidPanel concepts={firstAidConcepts} />}
+        {mode === "smart" && firstAidConcepts.length > 0 && <FirstAidPanel concepts={firstAidConcepts} />}
 
-        {smartResults && <SmartResults results={smartResults} />}
+        {mode === "smart" && smartResults && <SmartResults results={smartResults} />}
 
         {mode !== "plan" && (
           <SessionHistory

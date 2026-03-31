@@ -1803,3 +1803,23 @@
 .smart-card-status.suspended { color: var(--danger); }
 .smart-card-status.active { color: var(--success); }
 .smart-card-status.actioned { color: var(--accent); }
+
+.first-aid-header {
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.first-aid-count {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text);
+  margin-left: 8px;
+}
+
+.first-aid-toggle {
+  font-size: 0.78rem;
+  color: var(--accent);
+  font-weight: 500;
+}

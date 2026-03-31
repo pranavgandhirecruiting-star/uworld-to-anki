@@ -80,11 +80,13 @@ export function SmartSearch({
       // Step 3: Match cards + explain via backend (single call)
       setStatus(`Found ${candidates.length} candidates. Matching with AI...`);
 
-      const sessionCtx = getContextSummary();
+      // Only inject session context for NEW questions — repeated searches get deterministic results
+      const isRepeat = input.trim() === lastSearchRef.current;
+      const sessionCtx = isRepeat ? undefined : getContextSummary() || undefined;
       const { matches, explanation } = await serverSmartSearch(
         input,
         candidates.map(c => ({ cardId: c.cardId, text: c.text, tags: c.tags })),
-        sessionCtx || undefined
+        sessionCtx
       );
 
       if (matches.length === 0 && !explanation) {
