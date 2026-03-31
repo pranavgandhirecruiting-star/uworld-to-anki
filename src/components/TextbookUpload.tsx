@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { extractPDFText, batchPages } from "../utils/pdfExtractor";
-import { chunkTextbookBatch } from "../api/backend";
+import {
+  subscribe,
+  processTextbook,
+  type ProcessingState,
+} from "../utils/textbookProcessor";
 import {
   hasTextbook,
   getTextbookMeta,
-  saveTextbookConcepts,
-  saveTextbookMeta,
   clearTextbook,
 } from "../utils/textbookDB";
 
@@ -15,129 +16,62 @@ interface Props {
   onUpgrade: () => void;
 }
 
-interface ProcessingState {
-  phase: "idle" | "extracting" | "chunking" | "done" | "error";
-  message: string;
-  progress: number; // 0-100
-  conceptCount: number;
-}
-
 export function TextbookUpload({ isPro, isLoggedIn, onUpgrade }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [connected, setConnected] = useState(false);
-  const [meta, setMeta] = useState<{ name: string; processedAt: string; conceptCount: number } | null>(null);
+  const [meta, setMeta] = useState<{
+    name: string;
+    processedAt: string;
+    conceptCount: number;
+  } | null>(null);
   const [processing, setProcessing] = useState<ProcessingState>({
     phase: "idle",
     message: "",
+    detail: "",
     progress: 0,
     conceptCount: 0,
   });
   const [dragOver, setDragOver] = useState(false);
 
+  // Load initial state
   useEffect(() => {
     hasTextbook().then(setConnected);
     getTextbookMeta().then(setMeta);
   }, []);
 
-  const processFile = async (file: File) => {
-    if (!file.name.toLowerCase().endsWith(".pdf")) {
-      setProcessing({ phase: "error", message: "Please upload a PDF file.", progress: 0, conceptCount: 0 });
-      return;
-    }
-
-    try {
-      // Phase 1: Extract text
-      setProcessing({ phase: "extracting", message: "Extracting text from PDF...", progress: 5, conceptCount: 0 });
-
-      const { pages, totalPages } = await extractPDFText(file, (p) => {
-        const pct = Math.round((p.currentPage / p.totalPages) * 40);
-        setProcessing({
-          phase: "extracting",
-          message: `Extracting page ${p.currentPage} of ${p.totalPages}...`,
-          progress: pct,
-          conceptCount: 0,
-        });
-      });
-
-      // Phase 2: Batch and send to backend for chunking
-      const batches = batchPages(pages, 15);
-      const allConcepts: any[] = [];
-
-      setProcessing({
-        phase: "chunking",
-        message: `Processing with AI (${batches.length} batches)...`,
-        progress: 40,
-        conceptCount: 0,
-      });
-
-      // Process batches in parallel (5 at a time) for ~5x speedup
-      const CONCURRENCY = 5;
-      let completed = 0;
-
-      for (let start = 0; start < batches.length; start += CONCURRENCY) {
-        const chunk = batches.slice(start, start + CONCURRENCY);
-        const promises = chunk.map((batch, offset) =>
-          chunkTextbookBatch(batch, start + offset, batches.length)
-        );
-        const results = await Promise.all(promises);
-        for (const result of results) {
-          allConcepts.push(...result.concepts);
-        }
-        completed += chunk.length;
-
-        const pct = 40 + Math.round((completed / batches.length) * 55);
-        setProcessing({
-          phase: "chunking",
-          message: `${completed}/${batches.length} batches done — ${allConcepts.length} concepts found...`,
-          progress: pct,
-          conceptCount: allConcepts.length,
-        });
+  // Subscribe to module-level processing state (survives tab switches)
+  useEffect(() => {
+    const unsub = subscribe((state) => {
+      setProcessing(state);
+      // When done, refresh connection status
+      if (state.phase === "done") {
+        hasTextbook().then(setConnected);
+        getTextbookMeta().then(setMeta);
       }
+    });
+    return unsub;
+  }, []);
 
-      // Phase 3: Save to IndexedDB
-      await saveTextbookConcepts(allConcepts);
-      const newMeta = {
-        name: file.name,
-        processedAt: new Date().toISOString(),
-        conceptCount: allConcepts.length,
-      };
-      await saveTextbookMeta(newMeta);
-
-      setMeta(newMeta);
-      setConnected(true);
-      setProcessing({
-        phase: "done",
-        message: `Done! ${allConcepts.length} concepts extracted from ${totalPages} pages.`,
-        progress: 100,
-        conceptCount: allConcepts.length,
-      });
-    } catch (err) {
-      setProcessing({
-        phase: "error",
-        message: err instanceof Error ? err.message : "Processing failed. Please try again.",
-        progress: 0,
-        conceptCount: 0,
-      });
-    }
+  const handleFile = (file: File) => {
+    processTextbook(file);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files[0];
-    if (file) processFile(file);
+    if (file) handleFile(file);
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) processFile(file);
+    if (file) handleFile(file);
   };
 
   const handleDisconnect = async () => {
     await clearTextbook();
     setConnected(false);
     setMeta(null);
-    setProcessing({ phase: "idle", message: "", progress: 0, conceptCount: 0 });
   };
 
   // Gate: requires Pro
@@ -148,8 +82,9 @@ export function TextbookUpload({ isPro, isLoggedIn, onUpgrade }: Props) {
           <h4>Connect Your Textbook</h4>
         </div>
         <p className="textbook-hint">
-          Upload your First Aid PDF to get personalized "First Aid says..." insights
-          alongside every Smart Search. Your PDF never leaves your machine.
+          Upload your First Aid PDF to get personalized "First Aid says..."
+          insights alongside every Smart Search. Your PDF never leaves your
+          machine.
         </p>
         {!isLoggedIn ? (
           <p className="textbook-gate">Sign in above to access this feature.</p>
@@ -162,8 +97,14 @@ export function TextbookUpload({ isPro, isLoggedIn, onUpgrade }: Props) {
     );
   }
 
-  // Connected state
-  if (connected && meta && processing.phase !== "extracting" && processing.phase !== "chunking") {
+  const isActive =
+    processing.phase === "reading" ||
+    processing.phase === "extracting" ||
+    processing.phase === "chunking" ||
+    processing.phase === "saving";
+
+  // Connected state (not actively processing)
+  if (connected && meta && !isActive) {
     return (
       <div className="textbook-section">
         <div className="textbook-header">
@@ -184,13 +125,14 @@ export function TextbookUpload({ isPro, isLoggedIn, onUpgrade }: Props) {
           </button>
         </div>
         <p className="textbook-hint">
-          Concepts from your textbook will appear in the "High-Yield Review" panel during Smart Search.
+          Concepts from your textbook will appear in the "High-Yield Review"
+          panel during Smart Search.
         </p>
       </div>
     );
   }
 
-  // Upload/processing state
+  // Upload / processing state
   return (
     <div className="textbook-section">
       <div className="textbook-header">
@@ -198,14 +140,18 @@ export function TextbookUpload({ isPro, isLoggedIn, onUpgrade }: Props) {
       </div>
       <p className="textbook-hint">
         Upload your First Aid PDF to get personalized "First Aid says..." insights
-        alongside every Smart Search. Your PDF is processed locally — it never leaves your machine.
+        alongside every Smart Search. Your PDF is processed locally — it never
+        leaves your machine.
       </p>
 
-      {processing.phase === "idle" || processing.phase === "error" || processing.phase === "done" ? (
+      {!isActive ? (
         <>
           <div
             className={`textbook-dropzone ${dragOver ? "active" : ""}`}
-            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
             onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}
             onClick={() => fileRef.current?.click()}
@@ -214,7 +160,9 @@ export function TextbookUpload({ isPro, isLoggedIn, onUpgrade }: Props) {
             <div className="dropzone-text">
               Drop your PDF here or click to browse
             </div>
-            <div className="dropzone-hint">Supports First Aid and similar medical textbooks</div>
+            <div className="dropzone-hint">
+              Supports First Aid and similar medical textbooks
+            </div>
             <input
               ref={fileRef}
               type="file"
@@ -229,18 +177,27 @@ export function TextbookUpload({ isPro, isLoggedIn, onUpgrade }: Props) {
           )}
 
           {processing.phase === "done" && (
-            <div className="textbook-success">{processing.message}</div>
+            <div className="textbook-success">
+              {processing.message}
+            </div>
           )}
         </>
       ) : (
         <div className="textbook-processing">
+          <div className="textbook-phase-label">
+            {processing.phase === "reading" && "Step 1/4 — Reading file"}
+            {processing.phase === "extracting" && "Step 2/4 — Extracting text"}
+            {processing.phase === "chunking" && "Step 3/4 — AI analysis"}
+            {processing.phase === "saving" && "Step 4/4 — Saving"}
+          </div>
           <div className="textbook-progress-bar">
             <div
               className="textbook-progress-fill"
               style={{ width: `${processing.progress}%` }}
             />
           </div>
-          <p className="textbook-progress-text">{processing.message}</p>
+          <p className="textbook-progress-message">{processing.message}</p>
+          <p className="textbook-progress-detail">{processing.detail}</p>
           {processing.conceptCount > 0 && (
             <p className="textbook-concept-count">
               {processing.conceptCount} concepts found so far

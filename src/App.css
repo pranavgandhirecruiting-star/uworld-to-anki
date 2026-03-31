@@ -1450,10 +1450,26 @@
   transition: width 0.3s ease;
 }
 
-.textbook-progress-text {
-  font-size: 0.82rem;
-  color: var(--text);
+.textbook-phase-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+
+.textbook-progress-message {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-h);
   margin: 0;
+}
+
+.textbook-progress-detail {
+  font-size: 0.78rem;
+  color: var(--text);
+  margin: 2px 0 0;
 }
 
 .textbook-concept-count {
