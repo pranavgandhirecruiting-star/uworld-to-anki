@@ -1656,3 +1656,26 @@
   font-weight: 500;
   margin-bottom: 4px;
 }
+
+.kb-source-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kb-upload-note {
+  font-size: 0.78rem;
+  color: var(--warning);
+  font-style: italic;
+  margin: 0 0 8px;
+}
+
+.textbook-gate-msg {
+  font-size: 0.82rem;
+  color: var(--text);
+  font-style: italic;
+}
+
+.textbook-gate-msg p {
+  margin: 0;
+}

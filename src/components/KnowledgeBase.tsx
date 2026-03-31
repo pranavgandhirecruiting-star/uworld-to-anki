@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { TextbookUpload } from "./TextbookUpload";
-import { hasTextbook, getTextbookMeta } from "../utils/textbookDB";
+import { hasTextbook, getTextbookMeta, clearTextbook } from "../utils/textbookDB";
 import { FIRST_AID_CONCEPTS } from "../data/firstAidConcepts";
 
 interface Props {
@@ -10,17 +10,33 @@ interface Props {
 }
 
 export function KnowledgeBase({ isPro, isLoggedIn, onUpgrade }: Props) {
-  const [textbookConnected, setTextbookConnected] = useState(false);
-  const [textbookMeta, setTextbookMeta] = useState<{
-    name: string;
-    processedAt: string;
-    conceptCount: number;
-  } | null>(null);
+  const [uploadedBooks, setUploadedBooks] = useState<
+    { name: string; processedAt: string; conceptCount: number }[]
+  >([]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    hasTextbook().then(setTextbookConnected);
-    getTextbookMeta().then(setTextbookMeta);
-  }, []);
+    async function load() {
+      const connected = await hasTextbook();
+      if (connected) {
+        const meta = await getTextbookMeta();
+        if (meta) setUploadedBooks([meta]);
+        else setUploadedBooks([]);
+      } else {
+        setUploadedBooks([]);
+      }
+    }
+    load();
+  }, [refreshKey]);
+
+  const handleRemoveBook = async () => {
+    await clearTextbook();
+    setRefreshKey((k) => k + 1);
+  };
+
+  const handleUploadComplete = () => {
+    setRefreshKey((k) => k + 1);
+  };
 
   return (
     <div className="knowledge-base">
@@ -49,23 +65,27 @@ export function KnowledgeBase({ isPro, isLoggedIn, onUpgrade }: Props) {
         </p>
       </div>
 
-      {/* User-uploaded textbook */}
-      {textbookConnected && textbookMeta && (
-        <div className="kb-source">
+      {/* User-uploaded textbooks */}
+      {uploadedBooks.map((book, i) => (
+        <div key={i} className="kb-source">
           <div className="kb-source-header">
             <div className="kb-source-info">
-              <span className="kb-source-name">{textbookMeta.name}</span>
+              <span className="kb-source-name">{book.name}</span>
               <span className="kb-source-badge uploaded">Uploaded</span>
             </div>
-            <span className="kb-source-count">{textbookMeta.conceptCount} concepts</span>
+            <div className="kb-source-actions">
+              <span className="kb-source-count">{book.conceptCount} concepts</span>
+              <button className="btn btn-ghost btn-sm" onClick={handleRemoveBook}>
+                Remove
+              </button>
+            </div>
           </div>
           <p className="kb-source-desc">
-            Your uploaded textbook concepts are merged with the built-in bank and
-            given a slight relevance boost in search results.
-            Processed {new Date(textbookMeta.processedAt).toLocaleDateString()}.
+            Merged with the built-in bank and given a slight relevance boost.
+            Processed {new Date(book.processedAt).toLocaleDateString()}.
           </p>
         </div>
-      )}
+      ))}
 
       {/* How it works */}
       <div className="kb-how-it-works">
@@ -82,28 +102,46 @@ export function KnowledgeBase({ isPro, isLoggedIn, onUpgrade }: Props) {
             <span className="kb-step-num">2</span>
             <div>
               <strong>Knowledge base is searched</strong>
-              <p>Concepts are matched against {FIRST_AID_CONCEPTS.length}+ entries to find relevant high-yield facts.</p>
+              <p>
+                Concepts are matched against{" "}
+                {FIRST_AID_CONCEPTS.length + uploadedBooks.reduce((s, b) => s + b.conceptCount, 0)}+ entries
+                to find relevant high-yield facts.
+              </p>
             </div>
           </div>
           <div className="kb-step">
             <span className="kb-step-num">3</span>
             <div>
               <strong>AI generates insights</strong>
-              <p>The matched knowledge is injected into the AI prompt, producing
-              richer explanations and more targeted card recommendations.</p>
+              <p>
+                The matched knowledge is injected into the AI prompt, producing
+                richer explanations and more targeted card recommendations.
+              </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Upload section */}
+      {/* Upload section — always show, allows adding more books */}
       <div className="kb-upload-section">
-        <h4>Add Another Textbook</h4>
+        <h4>Add a Textbook</h4>
         <p className="kb-upload-desc">
           Upload a PDF of any medical textbook (Pathoma, Costanzo, Sketchy notes, etc.)
-          to expand your knowledge base. Your PDF is processed locally and never leaves your machine.
+          to expand your knowledge base. Your PDF is processed locally and never
+          leaves your machine.
         </p>
-        <TextbookUpload isPro={isPro} isLoggedIn={isLoggedIn} onUpgrade={onUpgrade} />
+        {uploadedBooks.length > 0 && (
+          <p className="kb-upload-note">
+            Note: Uploading a new textbook will replace your currently uploaded book.
+            The built-in First Aid bank is always available.
+          </p>
+        )}
+        <TextbookUpload
+          isPro={isPro}
+          isLoggedIn={isLoggedIn}
+          onUpgrade={onUpgrade}
+          onComplete={handleUploadComplete}
+        />
       </div>
     </div>
   );
