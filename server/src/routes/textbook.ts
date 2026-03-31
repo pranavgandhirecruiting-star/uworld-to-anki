@@ -68,14 +68,36 @@ Return ONLY a JSON array of concept objects. No other text.`,
 
     const text = response.content?.[0]?.type === "text" ? response.content[0].text : "[]";
 
-    // Parse JSON from response (handle markdown fences)
+    // Parse JSON from response (handle markdown fences and bad escaping)
     let concepts;
-    const start = text.indexOf("[");
-    const end = text.lastIndexOf("]");
-    if (start !== -1 && end > start) {
-      concepts = JSON.parse(text.slice(start, end + 1));
-    } else {
-      concepts = [];
+    try {
+      const start = text.indexOf("[");
+      const end = text.lastIndexOf("]");
+      if (start !== -1 && end > start) {
+        concepts = JSON.parse(text.slice(start, end + 1));
+      } else {
+        concepts = [];
+      }
+    } catch (parseErr) {
+      // Claude sometimes produces invalid JSON with unescaped chars.
+      // Try to salvage by fixing common issues then retry.
+      try {
+        const start = text.indexOf("[");
+        const end = text.lastIndexOf("]");
+        if (start !== -1 && end > start) {
+          let cleaned = text.slice(start, end + 1);
+          // Fix unescaped backslashes that aren't part of valid escape sequences
+          cleaned = cleaned.replace(/\\(?!["\\/bfnrtu])/g, "\\\\");
+          // Fix unescaped newlines inside strings
+          cleaned = cleaned.replace(/(?<=: "(?:[^"\\]|\\.)*)[\n\r]+(?=(?:[^"\\]|\\.)*")/g, "\\n");
+          concepts = JSON.parse(cleaned);
+        } else {
+          concepts = [];
+        }
+      } catch {
+        console.error("JSON parse failed even after cleanup, skipping batch", batchIndex);
+        concepts = [];
+      }
     }
 
     res.json({ concepts, batch: batchIndex });
