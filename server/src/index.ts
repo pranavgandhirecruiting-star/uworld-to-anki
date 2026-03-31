@@ -4,6 +4,7 @@ import authRoutes from "./routes/auth.js";
 import smartSearchRoutes from "./routes/smart-search.js";
 import studyPlanRoutes from "./routes/study-plan.js";
 import billingRoutes from "./routes/billing.js";
+import textbookRoutes from "./routes/textbook.js";
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3001");
@@ -47,6 +48,7 @@ app.use("/auth", authRoutes);
 app.use("/smart-search", smartSearchRoutes);
 app.use("/study-plan", studyPlanRoutes);
 app.use("/billing", billingRoutes);
+app.use("/textbook", textbookRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

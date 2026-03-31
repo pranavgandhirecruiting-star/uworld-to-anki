@@ -55,7 +55,7 @@ export function SmartSearch({
       }
 
       // Find relevant First Aid concepts based on extracted terms
-      const firstAidMatches = findRelevantConcepts(concepts);
+      const firstAidMatches = await findRelevantConcepts(concepts);
 
       setStatus(`Identified concepts: ${concepts.join(", ")}. Searching Anki...`);
 

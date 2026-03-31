@@ -4,6 +4,7 @@ export interface FirstAidConcept {
   summary: string;
   system: string;
   highYield: string;
+  pageRef?: string;
 }
 
 export const FIRST_AID_CONCEPTS: FirstAidConcept[] = [

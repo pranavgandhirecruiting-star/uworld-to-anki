@@ -17,7 +17,12 @@ export function FirstAidPanel({ concepts }: Props) {
           <div key={i} className="first-aid-card">
             <div className="first-aid-card-header">
               <span className="first-aid-concept">{concept.concept}</span>
-              <span className="first-aid-system">{concept.system}</span>
+              <div className="first-aid-badges">
+                <span className="first-aid-system">{concept.system}</span>
+                {concept.pageRef && (
+                  <span className="first-aid-page-ref">p. {concept.pageRef}</span>
+                )}
+              </div>
             </div>
             <p className="first-aid-summary">{concept.summary}</p>
             <div className="first-aid-high-yield">

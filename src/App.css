@@ -1322,3 +1322,166 @@
   color: var(--text-h);
   line-height: 1.4;
 }
+
+.first-aid-badges {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.first-aid-page-ref {
+  font-size: 0.7rem;
+  color: var(--text);
+  background: var(--code-bg);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* ── Textbook Upload ── */
+.textbook-section {
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  background: var(--card-bg);
+}
+
+.textbook-header h4 {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+  color: var(--text-h);
+}
+
+.textbook-hint {
+  font-size: 0.82rem;
+  color: var(--text);
+  margin: 0 0 12px;
+  line-height: 1.5;
+}
+
+.textbook-gate {
+  font-size: 0.82rem;
+  color: var(--text);
+  font-style: italic;
+}
+
+.textbook-connected {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border: 1px solid var(--success);
+  border-radius: var(--radius-sm);
+  background: var(--success-bg);
+  margin-bottom: 8px;
+}
+
+.textbook-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.textbook-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-h);
+}
+
+.textbook-stats {
+  font-size: 0.78rem;
+  color: var(--success);
+  font-weight: 500;
+}
+
+.textbook-date {
+  font-size: 0.72rem;
+  color: var(--text);
+}
+
+.textbook-dropzone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 32px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.textbook-dropzone:hover,
+.textbook-dropzone.active {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.dropzone-icon {
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+
+.dropzone-text {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-h);
+  margin-bottom: 4px;
+}
+
+.dropzone-hint {
+  font-size: 0.78rem;
+  color: var(--text);
+}
+
+.textbook-processing {
+  padding: 16px 0;
+}
+
+.textbook-progress-bar {
+  height: 6px;
+  background: var(--code-bg);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.textbook-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.textbook-progress-text {
+  font-size: 0.82rem;
+  color: var(--text);
+  margin: 0;
+}
+
+.textbook-concept-count {
+  font-size: 0.78rem;
+  color: var(--accent);
+  font-weight: 500;
+  margin: 4px 0 0;
+}
+
+.textbook-error {
+  font-size: 0.82rem;
+  color: var(--danger);
+  padding: 8px 12px;
+  background: var(--danger-bg);
+  border-radius: var(--radius-sm);
+  margin-top: 8px;
+}
+
+.textbook-success {
+  font-size: 0.82rem;
+  color: var(--success);
+  padding: 8px 12px;
+  background: var(--success-bg);
+  border-radius: var(--radius-sm);
+  margin-top: 8px;
+}
+
+.copilot-section-divider {
+  border-top: 1px solid var(--border);
+  margin: 20px 0;
+}

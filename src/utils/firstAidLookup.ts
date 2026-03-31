@@ -1,13 +1,23 @@
 import { FIRST_AID_CONCEPTS, type FirstAidConcept } from "../data/firstAidConcepts";
+import { getTextbookConcepts } from "./textbookDB";
 
 /**
  * Find First Aid concepts relevant to a set of medical terms.
- * Uses keyword matching -- no embeddings needed.
+ * Merges static concept bank with user's uploaded textbook concepts.
  */
-export function findRelevantConcepts(terms: string[], maxResults = 3): FirstAidConcept[] {
+export async function findRelevantConcepts(terms: string[], maxResults = 5): Promise<FirstAidConcept[]> {
+  // Get user's textbook concepts (if any)
+  let textbookConcepts: FirstAidConcept[] = [];
+  try {
+    textbookConcepts = await getTextbookConcepts();
+  } catch {
+    // IndexedDB not available or empty — that's fine
+  }
+
+  const allConcepts = [...textbookConcepts, ...FIRST_AID_CONCEPTS];
   const normalizedTerms = terms.map(t => t.toLowerCase());
 
-  const scored = FIRST_AID_CONCEPTS.map(concept => {
+  const scored = allConcepts.map(concept => {
     let score = 0;
     const allKeywords = [
       concept.concept.toLowerCase(),
@@ -19,7 +29,6 @@ export function findRelevantConcepts(terms: string[], maxResults = 3): FirstAidC
         if (keyword.includes(term) || term.includes(keyword)) {
           score += 2;
         }
-        // Partial word match
         const termWords = term.split(/\s+/);
         const keyWords = keyword.split(/\s+/);
         for (const tw of termWords) {
@@ -30,6 +39,11 @@ export function findRelevantConcepts(terms: string[], maxResults = 3): FirstAidC
           }
         }
       }
+    }
+
+    // Boost textbook concepts slightly (user's actual textbook is more relevant)
+    if (textbookConcepts.includes(concept)) {
+      score *= 1.3;
     }
 
     return { concept, score };

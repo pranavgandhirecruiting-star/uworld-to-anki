@@ -177,5 +177,30 @@ export async function createCheckout(): Promise<string> {
   return data.url;
 }
 
+// ── Textbook ──
+
+export interface TextbookChunkResult {
+  concepts: Array<{
+    concept: string;
+    keywords: string[];
+    summary: string;
+    system: string;
+    highYield: string;
+    pageRef?: string;
+  }>;
+  batch: number;
+}
+
+export async function chunkTextbookBatch(
+  pages: string[],
+  batchIndex: number,
+  totalBatches: number
+): Promise<TextbookChunkResult> {
+  return apiFetch<TextbookChunkResult>("/textbook/chunk", {
+    method: "POST",
+    body: JSON.stringify({ pages, batchIndex, totalBatches }),
+  });
+}
+
 // Re-export types used elsewhere
 export type { QuestionExplanation, GlossaryTerm };
