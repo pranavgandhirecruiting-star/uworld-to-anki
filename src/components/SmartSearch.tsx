@@ -1,14 +1,10 @@
 import { useState } from "react";
 import { searchCards, getCardInfo, type CardInfo } from "../api/ankiConnect";
-import {
-  extractMedicalConcepts,
-  matchCardsToQuestion,
-  explainQuestion,
-  type QuestionExplanation,
-} from "../api/claude";
+import { extractConcepts, serverSmartSearch } from "../api/backend";
+import { type QuestionExplanation } from "../api/claude";
 import { getContextSummary, updateSessionContext } from "../utils/sessionContext";
 import { findRelevantConcepts } from "../utils/firstAidLookup";
-import { type FirstAidConcept } from "../data/firstAidConcepts";
+import { type FirstAidConcept, FIRST_AID_CONCEPTS } from "../data/firstAidConcepts";
 
 export interface SmartSearchResult {
   cardId: number;
@@ -43,104 +39,75 @@ export function SmartSearch({
     onError("");
 
     try {
-      // Step 1: Ask Claude to extract key medical concepts
-      setStatus("Analyzing question with Claude...");
-      const concepts = await extractMedicalConcepts(input);
-      console.log("[SmartSearch] Extracted concepts:", concepts);
+      // Step 1: Extract concepts via backend
+      setStatus("Analyzing question...");
+      const concepts = await extractConcepts(input);
 
       if (concepts.length === 0) {
-        onError("Could not extract medical concepts from the question. Try adding more clinical detail.");
+        onError("Could not extract medical concepts. Try adding more clinical detail.");
         setLoading(false);
         return;
       }
 
-      // Find relevant First Aid concepts based on extracted terms
+      // Find relevant First Aid concepts
       const firstAidMatches = await findRelevantConcepts(concepts);
 
-      setStatus(`Identified concepts: ${concepts.join(", ")}. Searching Anki...`);
+      setStatus(`Searching Anki for: ${concepts.join(", ")}...`);
 
-      // Step 2: Search Anki with each concept, collecting unique candidates
+      // Step 2: Search Anki locally with each concept
       const candidateMap = new Map<number, { cardId: number; text: string; tags: string[]; deckName: string; queue: number }>();
-
       for (const concept of concepts) {
         try {
           const results = await searchCards(concept, 50);
-          console.log(`[SmartSearch] "${concept}" → ${results.length} cards`);
           for (const card of results) {
             if (!candidateMap.has(card.cardId)) {
               candidateMap.set(card.cardId, card);
             }
           }
-        } catch (err) {
-          console.error(`[SmartSearch] Search failed for "${concept}":`, err);
-        }
-        // Stop if we have enough candidates
+        } catch {}
         if (candidateMap.size >= 200) break;
       }
-      console.log("[SmartSearch] Total unique candidates:", candidateMap.size);
 
       const candidates = Array.from(candidateMap.values());
 
       if (candidates.length === 0) {
-        onError(
-          `No cards found for concepts: ${concepts.join(", ")}. Your deck may not cover this topic.`
-        );
+        onError(`No cards found for: ${concepts.join(", ")}. Your deck may not cover this topic.`);
         setLoading(false);
         return;
       }
 
-      // Step 3: Run card matching AND question explanation in parallel
-      setStatus(
-        `Found ${candidates.length} candidate cards. Analyzing with Claude...`
-      );
+      // Step 3: Match cards + explain via backend (single call)
+      setStatus(`Found ${candidates.length} candidates. Matching with AI...`);
 
       const sessionCtx = getContextSummary();
+      const { matches, explanation } = await serverSmartSearch(
+        input,
+        candidates.map(c => ({ cardId: c.cardId, text: c.text, tags: c.tags })),
+        sessionCtx || undefined
+      );
 
-      const [matches, explanation] = await Promise.all([
-        matchCardsToQuestion(
-          input,
-          candidates.map((c) => ({
-            cardId: c.cardId,
-            text: c.text,
-            tags: c.tags,
-          })),
-          sessionCtx || undefined
-        ),
-        explainQuestion(input, sessionCtx || undefined).catch((err) => {
-          console.error("Explanation failed:", err);
-          return null;
-        }),
-      ]);
-
-      if (matches.length === 0) {
-        // Even if no cards matched, we might still have an explanation
-        if (explanation) {
-          onResults([], explanation, firstAidMatches);
-        } else {
-          onError(
-            "Claude didn't find any strongly relevant cards among the candidates. The topic may not be well-covered in your deck."
-          );
-        }
+      if (matches.length === 0 && !explanation) {
+        onError("No strongly relevant cards found. The topic may not be well-covered in your deck.");
         setLoading(false);
         return;
       }
 
       // Step 4: Get full card info for matched cards
       setStatus("Loading card details...");
-      const matchedCardIds = matches.map((m) => m.cardId);
+      const matchedCardIds = matches.map(m => m.cardId);
       const fullCards = await getCardInfo(matchedCardIds);
+      const cardMap = new Map(fullCards.map(c => [c.cardId, c]));
 
-      const cardMap = new Map(fullCards.map((c) => [c.cardId, c]));
       const results: SmartSearchResult[] = matches
-        .filter((m) => cardMap.has(m.cardId))
-        .map((m) => ({
+        .filter(m => cardMap.has(m.cardId))
+        .map(m => ({
           cardId: m.cardId,
           card: cardMap.get(m.cardId)!,
           relevance: m.relevance,
           reason: m.reason,
         }));
 
-      // Update session context with concepts and topic tags from matched cards
+      // Update session context
       const topicTags: string[] = [];
       for (const r of results) {
         for (const tag of r.card.tags) {
@@ -148,9 +115,7 @@ export function SmartSearch({
             const parts = tag.split("::");
             if (parts.length >= 2) {
               const topic = parts[1].replace(/_/g, " ");
-              if (topic && !topicTags.includes(topic)) {
-                topicTags.push(topic);
-              }
+              if (topic && !topicTags.includes(topic)) topicTags.push(topic);
             }
           }
         }
@@ -172,6 +137,9 @@ export function SmartSearch({
       <label htmlFor="smart-textarea">
         Paste a question you missed (from any qbank)
       </label>
+      <div className="smart-search-info">
+        Powered by First Aid 2026 knowledge base ({FIRST_AID_CONCEPTS.length} concepts)
+      </div>
       <textarea
         id="smart-textarea"
         value={input}

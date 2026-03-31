@@ -12,6 +12,7 @@ import { SessionHistory } from "./components/SessionHistory";
 import { AuthBar } from "./components/AuthBar";
 import { UpgradePrompt } from "./components/UpgradePrompt";
 import { StudyPlan } from "./components/StudyPlan";
+import { KnowledgeBase } from "./components/KnowledgeBase";
 import { Logo } from "./components/Logo";
 import { FetchAnimation } from "./components/FetchAnimation";
 import { lookupQIDs, type QIDResult } from "./api/ankiConnect";
@@ -28,7 +29,7 @@ import {
 import { saveSession, type Session } from "./utils/sessionHistory";
 import "./App.css";
 
-type SearchMode = "qid" | "smart" | "plan";
+type SearchMode = "qid" | "smart" | "plan" | "knowledge";
 
 function App() {
   const { connected, checking, retry } = useAnkiConnection();
@@ -230,6 +231,12 @@ function App() {
         >
           Study Co-Pilot {!isPro && <span className="tab-badge-pro">Pro</span>}
         </button>
+        <button
+          className={`mode-tab ${mode === "knowledge" ? "active" : ""}`}
+          onClick={() => handleModeSwitch("knowledge")}
+        >
+          Knowledge Base
+        </button>
       </div>
 
       <main className="app-main">
@@ -277,6 +284,14 @@ function App() {
             onUpgrade={handleUpgrade}
             disabled={!connected}
             connected={!!connected}
+          />
+        )}
+
+        {mode === "knowledge" && (
+          <KnowledgeBase
+            isPro={isPro}
+            isLoggedIn={isLoggedIn}
+            onUpgrade={handleUpgrade}
           />
         )}
 

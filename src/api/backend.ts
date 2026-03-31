@@ -127,11 +127,12 @@ export async function extractConcepts(
 
 export async function serverSmartSearch(
   questionText: string,
-  candidates: { cardId: number; text: string; tags: string[] }[]
+  candidates: { cardId: number; text: string; tags: string[] }[],
+  sessionContext?: string
 ): Promise<SmartSearchResponse> {
   return apiFetch<SmartSearchResponse>("/smart-search", {
     method: "POST",
-    body: JSON.stringify({ questionText, candidates }),
+    body: JSON.stringify({ questionText, candidates, sessionContext }),
   });
 }
 

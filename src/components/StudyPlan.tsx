@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { searchCards, unsuspendCards } from "../api/ankiConnect";
 import { generateStudyPlan, type StudyPlanSection, type StudyPlanResponse } from "../api/backend";
 import { getSessions } from "../utils/sessionHistory";
-import { TextbookUpload } from "./TextbookUpload";
 
 const EXAM_DATE_KEY = "ollopa-exam-date";
 
@@ -296,8 +295,6 @@ export function StudyPlan({
         </div>
       )}
 
-      <div className="copilot-section-divider" />
-      <TextbookUpload isPro={isPro} isLoggedIn={isLoggedIn} onUpgrade={onUpgrade} />
     </div>
   );
 }
