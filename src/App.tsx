@@ -43,6 +43,7 @@ function App() {
   const [lastQIDs, setLastQIDs] = useState<string[]>([]);
   const [historyKey, setHistoryKey] = useState(0);
   const [inputOverride, setInputOverride] = useState<string | null>(null);
+  const [smartInput, setSmartInput] = useState("");
   const [atLimit, setAtLimit] = useState(false);
 
   // Auth state
@@ -284,6 +285,8 @@ function App() {
             setLoading={setLoading}
             disabled={!connected || smartSearchBlocked}
             onError={handleSmartError}
+            input={smartInput}
+            onInputChange={setSmartInput}
           />
         )}
 
@@ -294,7 +297,7 @@ function App() {
           />
         )}
 
-        {mode === "plan" && (
+        <div style={{ display: mode === "plan" ? "block" : "none" }}>
           <StudyPlan
             isPro={isPro}
             isLoggedIn={isLoggedIn}
@@ -302,7 +305,7 @@ function App() {
             disabled={!connected}
             connected={!!connected}
           />
-        )}
+        </div>
 
         {mode === "knowledge" && (
           <KnowledgeBase

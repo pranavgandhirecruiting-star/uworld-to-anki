@@ -20,6 +20,8 @@ interface Props {
   setLoading: (loading: boolean) => void;
   disabled: boolean;
   onError: (error: string) => void;
+  input: string;
+  onInputChange: (value: string) => void;
 }
 
 export function SmartSearch({
@@ -28,8 +30,9 @@ export function SmartSearch({
   setLoading,
   disabled,
   onError,
+  input,
+  onInputChange: setInput,
 }: Props) {
-  const [input, setInput] = useState("");
   const [status, setStatus] = useState("");
   const lastSearchRef = useRef<string>("");
   const resultsCacheRef = useRef<Map<string, { results: SmartSearchResult[]; explanation: QuestionExplanation | null; faConcepts: FirstAidConcept[] }>>(new Map());
