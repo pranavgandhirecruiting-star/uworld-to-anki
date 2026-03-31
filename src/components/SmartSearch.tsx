@@ -6,6 +6,9 @@ import {
   explainQuestion,
   type QuestionExplanation,
 } from "../api/claude";
+import { getContextSummary, updateSessionContext } from "../utils/sessionContext";
+import { findRelevantConcepts } from "../utils/firstAidLookup";
+import { type FirstAidConcept } from "../data/firstAidConcepts";
 
 export interface SmartSearchResult {
   cardId: number;
@@ -15,7 +18,7 @@ export interface SmartSearchResult {
 }
 
 interface Props {
-  onResults: (results: SmartSearchResult[], explanation: QuestionExplanation | null) => void;
+  onResults: (results: SmartSearchResult[], explanation: QuestionExplanation | null, firstAidConcepts: FirstAidConcept[]) => void;
   loading: boolean;
   setLoading: (loading: boolean) => void;
   disabled: boolean;
@@ -50,6 +53,9 @@ export function SmartSearch({
         setLoading(false);
         return;
       }
+
+      // Find relevant First Aid concepts based on extracted terms
+      const firstAidMatches = findRelevantConcepts(concepts);
 
       setStatus(`Identified concepts: ${concepts.join(", ")}. Searching Anki...`);
 
@@ -88,6 +94,8 @@ export function SmartSearch({
         `Found ${candidates.length} candidate cards. Analyzing with Claude...`
       );
 
+      const sessionCtx = getContextSummary();
+
       const [matches, explanation] = await Promise.all([
         matchCardsToQuestion(
           input,
@@ -95,9 +103,10 @@ export function SmartSearch({
             cardId: c.cardId,
             text: c.text,
             tags: c.tags,
-          }))
+          })),
+          sessionCtx || undefined
         ),
-        explainQuestion(input).catch((err) => {
+        explainQuestion(input, sessionCtx || undefined).catch((err) => {
           console.error("Explanation failed:", err);
           return null;
         }),
@@ -106,7 +115,7 @@ export function SmartSearch({
       if (matches.length === 0) {
         // Even if no cards matched, we might still have an explanation
         if (explanation) {
-          onResults([], explanation);
+          onResults([], explanation, firstAidMatches);
         } else {
           onError(
             "Claude didn't find any strongly relevant cards among the candidates. The topic may not be well-covered in your deck."
@@ -131,8 +140,25 @@ export function SmartSearch({
           reason: m.reason,
         }));
 
+      // Update session context with concepts and topic tags from matched cards
+      const topicTags: string[] = [];
+      for (const r of results) {
+        for (const tag of r.card.tags) {
+          if (tag.startsWith("#AK_Step") && tag.includes("::")) {
+            const parts = tag.split("::");
+            if (parts.length >= 2) {
+              const topic = parts[1].replace(/_/g, " ");
+              if (topic && !topicTags.includes(topic)) {
+                topicTags.push(topic);
+              }
+            }
+          }
+        }
+      }
+      updateSessionContext(concepts, topicTags);
+
       setStatus("");
-      onResults(results, explanation);
+      onResults(results, explanation, firstAidMatches);
     } catch (err) {
       onError(err instanceof Error ? err.message : "Smart search failed");
     }

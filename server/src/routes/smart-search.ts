@@ -15,7 +15,7 @@ const router = Router();
 const FREE_DAILY_LIMIT = 3;
 
 router.post("/", requireAuth, async (req: AuthRequest, res) => {
-  const { questionText, candidates } = req.body;
+  const { questionText, candidates, sessionContext } = req.body;
 
   if (!questionText || !candidates?.length) {
     res.status(400).json({ error: "questionText and candidates are required" });
@@ -44,8 +44,8 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
   try {
     // Run card matching and explanation in parallel
     const [matches, explanation] = await Promise.all([
-      matchCardsToQuestion(questionText, candidates),
-      explainQuestion(questionText).catch((err) => {
+      matchCardsToQuestion(questionText, candidates, sessionContext),
+      explainQuestion(questionText, sessionContext).catch((err) => {
         console.error("Explanation failed:", err);
         return null;
       }),

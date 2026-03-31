@@ -1233,3 +1233,92 @@
   color: var(--accent);
   font-style: italic;
 }
+
+/* ── First Aid Panel ── */
+.first-aid-panel {
+  border: 1.5px solid var(--warm-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--card-bg);
+}
+
+.first-aid-header {
+  padding: 12px 16px;
+  background: var(--warm);
+  border-bottom: 1px solid var(--warm-border);
+}
+
+.first-aid-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text-h);
+}
+
+.first-aid-body {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.first-aid-card {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+
+.first-aid-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.first-aid-concept {
+  font-weight: 700;
+  color: var(--text-h);
+  font-size: 0.9rem;
+}
+
+.first-aid-system {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.first-aid-summary {
+  font-size: 0.85rem;
+  color: var(--text-h);
+  line-height: 1.5;
+  margin: 0 0 8px;
+}
+
+.first-aid-high-yield {
+  background: var(--warm);
+  padding: 8px 12px;
+  border-radius: 6px;
+  border-left: 3px solid var(--warning);
+}
+
+.first-aid-hy-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--warning);
+  display: block;
+  margin-bottom: 2px;
+}
+
+.first-aid-high-yield p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-h);
+  line-height: 1.4;
+}

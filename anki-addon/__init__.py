@@ -146,9 +146,9 @@ def handle_search_cards(query="", limit=200):
                     text_parts.append(clean)
             text = " | ".join(text_parts)
 
-            # Truncate to ~300 chars to keep payload manageable
-            if len(text) > 300:
-                text = text[:300] + "..."
+            # Truncate to ~600 chars to keep payload manageable
+            if len(text) > 600:
+                text = text[:600] + "..."
 
             results.append({
                 "cardId": card.id,

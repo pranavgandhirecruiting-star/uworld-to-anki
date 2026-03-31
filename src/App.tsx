@@ -6,6 +6,8 @@ import { SmartSearch, type SmartSearchResult } from "./components/SmartSearch";
 import { Results } from "./components/Results";
 import { SmartResults } from "./components/SmartResults";
 import { ExplanationPanel } from "./components/ExplanationPanel";
+import { FirstAidPanel } from "./components/FirstAidPanel";
+import { type FirstAidConcept } from "./data/firstAidConcepts";
 import { SessionHistory } from "./components/SessionHistory";
 import { AuthBar } from "./components/AuthBar";
 import { UpgradePrompt } from "./components/UpgradePrompt";
@@ -34,6 +36,7 @@ function App() {
   const [results, setResults] = useState<QIDResult[] | null>(null);
   const [smartResults, setSmartResults] = useState<SmartSearchResult[] | null>(null);
   const [explanation, setExplanation] = useState<QuestionExplanation | null>(null);
+  const [firstAidConcepts, setFirstAidConcepts] = useState<FirstAidConcept[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastQIDs, setLastQIDs] = useState<string[]>([]);
@@ -115,9 +118,10 @@ function App() {
   }, []);
 
   const handleSmartResults = useCallback(
-    (results: SmartSearchResult[], exp: QuestionExplanation | null) => {
+    (results: SmartSearchResult[], exp: QuestionExplanation | null, faConcepts: FirstAidConcept[]) => {
       setSmartResults(results);
       setExplanation(exp);
+      setFirstAidConcepts(faConcepts);
       setResults(null);
 
       // Update usage count after a search
@@ -168,6 +172,7 @@ function App() {
     setResults(null);
     setSmartResults(null);
     setExplanation(null);
+    setFirstAidConcepts([]);
     setError(null);
     setAtLimit(false);
   };
@@ -306,6 +311,8 @@ function App() {
         )}
 
         {explanation && <ExplanationPanel explanation={explanation} />}
+
+        {firstAidConcepts.length > 0 && <FirstAidPanel concepts={firstAidConcepts} />}
 
         {smartResults && <SmartResults results={smartResults} />}
 

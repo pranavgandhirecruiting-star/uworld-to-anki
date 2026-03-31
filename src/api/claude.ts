@@ -65,7 +65,7 @@ export async function extractMedicalConcepts(questionText: string): Promise<stri
       "anthropic-dangerous-direct-browser-access": "true",
     },
     body: JSON.stringify({
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-sonnet-4-5-20250514",
       max_tokens: 256,
       system: `You are a medical education expert. Given a clinical vignette or exam question, extract the key medical concepts that a student should study. Focus on:
 - The diagnosis or condition being tested
@@ -140,7 +140,7 @@ export interface QuestionExplanation {
   glossary: GlossaryTerm[];
 }
 
-export async function explainQuestion(questionText: string): Promise<QuestionExplanation> {
+export async function explainQuestion(questionText: string, sessionContext?: string): Promise<QuestionExplanation> {
   const apiKey = getApiKey();
   if (!apiKey) {
     throw new Error("Anthropic API key not set.");
@@ -167,7 +167,7 @@ Return ONLY a JSON object with these fields:
 - "testedConcept": one sentence stating the core concept being tested and why it's high-yield
 - "trapAnswers": array of 2-4 objects, each with "answer" (the wrong choice) and "whyWrong" (1 sentence why students pick it and why it's wrong)
 - "highYield": array of 3-5 short strings with related facts the student should memorize
-- "glossary": array of 8-15 objects, each with "term" (a medical term that appears in your reasoning, testedConcept, trapAnswers, or highYield text) and "definition" (a concise 1-2 sentence definition a medical student would need). Include terms for diseases, pathophysiology concepts, histological findings, lab values, anatomical structures, and clinical signs mentioned anywhere in your response.
+- "glossary": array of 8-15 objects, each with "term" (a medical term that appears in your reasoning, testedConcept, trapAnswers, or highYield text) and "definition" (a concise 1-2 sentence definition a medical student would need). Include terms for diseases, pathophysiology concepts, histological findings, lab values, anatomical structures, and clinical signs mentioned anywhere in your response.${sessionContext ? `\n\n## Student Session Context\n${sessionContext}\n\nIf the student has been missing related concepts, connect this explanation to those patterns.` : ""}
 
 IMPORTANT: Return ONLY the JSON object, no markdown fences, no other text.`,
       messages: [{ role: "user", content: questionText }],
@@ -209,7 +209,8 @@ export interface MatchResult {
 
 export async function matchCardsToQuestion(
   questionText: string,
-  candidates: CardCandidate[]
+  candidates: CardCandidate[],
+  sessionContext?: string
 ): Promise<MatchResult[]> {
   const apiKey = getApiKey();
   if (!apiKey) {
@@ -250,7 +251,7 @@ Respond with ONLY a JSON array. Each element must have:
 - "relevance": "high", "medium", or "low"
 - "reason": a brief explanation (1 sentence) of why this card is relevant
 
-Return only high and medium relevance cards. Order by relevance (high first). If no cards are relevant, return an empty array [].
+Return only high and medium relevance cards. Order by relevance (high first). If no cards are relevant, return an empty array [].${sessionContext ? `\n\n## Student Session Context\n${sessionContext}\n\nUse this context to provide more targeted feedback. If you notice recurring weak topics, mention this in your reasons.` : ""}
 
 IMPORTANT: Respond with ONLY the JSON array, no markdown fences, no other text.`,
       messages: [
