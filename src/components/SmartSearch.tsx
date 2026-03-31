@@ -110,8 +110,14 @@ export function SmartSearch({
       const fullCards = await getCardInfo(matchedCardIds);
       const cardMap = new Map(fullCards.map(c => [c.cardId, c]));
 
+      // Deduplicate — Claude sometimes returns the same card multiple times
+      const seenCardIds = new Set<number>();
       const results: SmartSearchResult[] = matches
-        .filter(m => cardMap.has(m.cardId))
+        .filter(m => {
+          if (!cardMap.has(m.cardId) || seenCardIds.has(m.cardId)) return false;
+          seenCardIds.add(m.cardId);
+          return true;
+        })
         .map(m => ({
           cardId: m.cardId,
           card: cardMap.get(m.cardId)!,
