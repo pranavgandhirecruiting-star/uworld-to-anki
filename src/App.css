@@ -1823,3 +1823,72 @@
   color: var(--accent);
   font-weight: 500;
 }
+
+/* ── Co-Pilot Explainer ── */
+.copilot-explainer {
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  margin-top: 16px;
+}
+
+.copilot-explainer-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.copilot-explainer-toggle:hover {
+  background: var(--accent-bg);
+}
+
+.copilot-explainer-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.copilot-explainer-arrow {
+  font-size: 0.78rem;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.copilot-explainer-body {
+  padding: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.copilot-explainer-section h4 {
+  margin: 0 0 6px;
+  font-size: 0.88rem;
+  color: var(--text-h);
+}
+
+.copilot-explainer-section p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.copilot-explainer-section ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.copilot-explainer-section li {
+  font-size: 0.82rem;
+  color: var(--text);
+  line-height: 1.6;
+  margin-bottom: 4px;
+}
+
+.copilot-explainer-section li strong {
+  color: var(--text-h);
+}

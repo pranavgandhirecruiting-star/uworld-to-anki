@@ -339,6 +339,76 @@ export function StudyPlan({
         </div>
       )}
 
+      {/* How This Works — collapsible */}
+      <CoPilotExplainer />
+
+    </div>
+  );
+}
+
+function CoPilotExplainer() {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="copilot-explainer">
+      <div className="copilot-explainer-toggle" onClick={() => setExpanded(!expanded)}>
+        <span className="copilot-explainer-title">How does the Study Co-Pilot work?</span>
+        <span className="copilot-explainer-arrow">{expanded ? "Hide" : "Learn more"}</span>
+      </div>
+
+      {expanded && (
+        <div className="copilot-explainer-body">
+          <div className="copilot-explainer-section">
+            <h4>What it looks at</h4>
+            <p>
+              Every time you search a question — whether by QID or by pasting a question in Smart Search —
+              the Co-Pilot remembers which medical topics came up. It also reads your Anki deck directly to
+              see which cards you keep forgetting (high lapse count), which ones are due today, and which
+              topics have cards you haven't activated yet.
+            </p>
+          </div>
+
+          <div className="copilot-explainer-section">
+            <h4>How it prioritizes</h4>
+            <p>
+              Recent misses matter more than old ones. If you missed a renal question today, that weighs
+              heavily. If you missed one three weeks ago but your Anki cards for that topic now have strong
+              intervals and no lapses, the Co-Pilot recognizes you've likely reviewed and moved past it.
+              This prevents old topics from cluttering your study plan.
+            </p>
+          </div>
+
+          <div className="copilot-explainer-section">
+            <h4>What it's good at</h4>
+            <ul>
+              <li>Spotting recurring weak topics you might not notice yourself</li>
+              <li>Connecting your qbank performance to your actual Anki review stats</li>
+              <li>Building a focused plan so you're not guessing what to study</li>
+              <li>Adjusting over time as you improve — topics naturally fade as you master them</li>
+            </ul>
+          </div>
+
+          <div className="copilot-explainer-section">
+            <h4>What it might get wrong</h4>
+            <ul>
+              <li>Topic matching isn't perfect — Anki tags and question topics don't always align cleanly</li>
+              <li>It can only see questions you've searched through Ollopa, not your full qbank history</li>
+              <li>Card counts are estimates — Anki's tag structure can make some topics look bigger than they are</li>
+              <li>It doesn't know what you studied outside of Anki (lectures, Pathoma, group study, etc.)</li>
+            </ul>
+          </div>
+
+          <div className="copilot-explainer-section">
+            <h4>What you control</h4>
+            <ul>
+              <li><strong>Skip topics</strong> — if you know you're solid on something, hit "Skip" and it won't come back in this plan</li>
+              <li><strong>Regenerate</strong> — not happy with the plan? Hit regenerate for a fresh take</li>
+              <li><strong>Exam date</strong> — set it in your account menu and the plan factors in time pressure</li>
+              <li><strong>The more you use it, the smarter it gets</strong> — each Smart Search teaches it more about your weak spots</li>
+            </ul>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
