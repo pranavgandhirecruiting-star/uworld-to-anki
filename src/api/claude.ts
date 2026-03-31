@@ -10,7 +10,7 @@ const STORAGE_KEY_MODEL = "ollopa-model";
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 
-export type ModelChoice = "claude-haiku-4-5-20251001" | "claude-sonnet-4-5-20250514";
+export type ModelChoice = "claude-haiku-4-5-20251001" | "claude-sonnet-4-20250514";
 
 export function getApiKey(): string {
   return localStorage.getItem(STORAGE_KEY_API) || "";
@@ -65,7 +65,7 @@ export async function extractMedicalConcepts(questionText: string): Promise<stri
       "anthropic-dangerous-direct-browser-access": "true",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-5-20250514",
+      model: "claude-sonnet-4-20250514",
       max_tokens: 256,
       system: `You are a medical education expert. Given a clinical vignette or exam question, extract the key medical concepts that a student should study. Focus on:
 - The diagnosis or condition being tested

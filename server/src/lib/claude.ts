@@ -32,7 +32,7 @@ export async function extractMedicalConcepts(
   questionText: string
 ): Promise<string[]> {
   const response = await client.messages.create({
-    model: "claude-sonnet-4-5-20250514",
+    model: "claude-sonnet-4-20250514",
     max_tokens: 256,
     system: `You are a medical education expert. Given a clinical vignette or exam question, extract the key medical concepts that a student should study. Focus on:
 - The diagnosis or condition being tested
