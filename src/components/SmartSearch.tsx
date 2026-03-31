@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { searchCards, getCardInfo, type CardInfo } from "../api/ankiConnect";
 import { extractConcepts, serverSmartSearch } from "../api/backend";
 import { type QuestionExplanation } from "../api/claude";
@@ -30,6 +30,7 @@ export function SmartSearch({
 }: Props) {
   const [input, setInput] = useState("");
   const [status, setStatus] = useState("");
+  const lastSearchRef = useRef<string>("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,7 +108,7 @@ export function SmartSearch({
           reason: m.reason,
         }));
 
-      // Update session context
+      // Update session context only if search text changed (avoid accumulation on repeated searches)
       const topicTags: string[] = [];
       for (const r of results) {
         for (const tag of r.card.tags) {
@@ -120,7 +121,10 @@ export function SmartSearch({
           }
         }
       }
-      updateSessionContext(concepts, topicTags);
+      if (input.trim() !== lastSearchRef.current) {
+        updateSessionContext(concepts, topicTags);
+        lastSearchRef.current = input.trim();
+      }
 
       setStatus("");
       onResults(results, explanation, firstAidMatches);

@@ -13,19 +13,20 @@ interface Props {
 }
 
 function getFieldPreview(
-  fields: Record<string, { value: string; order: number }>
+  fields: Record<string, { value: string; order: number }>,
+  maxLen = 150
 ): string {
   const candidates = ["Text", "Extra", "Cloze", "Front", "Back"];
   for (const name of candidates) {
     if (fields[name]?.value) {
       const text = fields[name].value.replace(/<[^>]*>/g, "").trim();
-      if (text) return text.slice(0, 150) + (text.length > 150 ? "..." : "");
+      if (text) return text.slice(0, maxLen) + (text.length > maxLen ? "..." : "");
     }
   }
   const sorted = Object.values(fields).sort((a, b) => a.order - b.order);
   for (const f of sorted) {
     const text = f.value.replace(/<[^>]*>/g, "").trim();
-    if (text) return text.slice(0, 150) + (text.length > 150 ? "..." : "");
+    if (text) return text.slice(0, maxLen) + (text.length > maxLen ? "..." : "");
   }
   return "(no preview available)";
 }
@@ -37,6 +38,8 @@ function RelevanceBadge({ level }: { level: "high" | "medium" | "low" }) {
 export function SmartResults({ results }: Props) {
   const [busy, setBusy] = useState(false);
   const [actionedIds, setActionedIds] = useState<Map<number, "suspended" | "unsuspended">>(new Map());
+  const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set());
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [deckList, setDeckList] = useState<string[]>([]);
   const [showNewDeck, setShowNewDeck] = useState(false);
   const [showExistingDeck, setShowExistingDeck] = useState(false);
@@ -57,11 +60,38 @@ export function SmartResults({ results }: Props) {
   const suspendedResults = results.filter((r) => isSuspended(r));
   const activeResults = results.filter((r) => !isSuspended(r));
 
+  const highResults = results.filter((r) => r.relevance === "high");
+  const medResults = results.filter((r) => r.relevance === "medium");
+
   useEffect(() => {
     if (showExistingDeck) {
       getDecks().then(setDeckList).catch(() => setDeckList([]));
     }
   }, [showExistingDeck]);
+
+  const toggleCard = (cardId: number) => {
+    setExpandedCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(cardId)) {
+        next.delete(cardId);
+      } else {
+        next.add(cardId);
+      }
+      return next;
+    });
+  };
+
+  const toggleGroup = (group: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(group)) {
+        next.delete(group);
+      } else {
+        next.add(group);
+      }
+      return next;
+    });
+  };
 
   const handleUnsuspendAll = async () => {
     const ids = suspendedResults.map((r) => r.cardId);
@@ -97,6 +127,36 @@ export function SmartResults({ results }: Props) {
     setBusy(false);
   };
 
+  const handleCardSuspend = async (cardId: number) => {
+    setBusy(true);
+    try {
+      await suspendCards([cardId]);
+      setActionedIds((prev) => {
+        const next = new Map(prev);
+        next.set(cardId, "suspended");
+        return next;
+      });
+    } catch (err) {
+      console.error("Failed to suspend card:", err);
+    }
+    setBusy(false);
+  };
+
+  const handleCardUnsuspend = async (cardId: number) => {
+    setBusy(true);
+    try {
+      await unsuspendCards([cardId]);
+      setActionedIds((prev) => {
+        const next = new Map(prev);
+        next.set(cardId, "unsuspended");
+        return next;
+      });
+    } catch (err) {
+      console.error("Failed to unsuspend card:", err);
+    }
+    setBusy(false);
+  };
+
   const handleNewDeck = async () => {
     if (!newDeckName.trim()) return;
     setMovingDeck(true);
@@ -128,8 +188,84 @@ export function SmartResults({ results }: Props) {
     setMovingDeck(false);
   };
 
-  const highCount = results.filter((r) => r.relevance === "high").length;
-  const medCount = results.filter((r) => r.relevance === "medium").length;
+  const renderCard = (result: SmartSearchResult) => {
+    const isExpanded = expandedCards.has(result.cardId);
+    const suspended = isSuspended(result);
+    const actioned = actionedIds.has(result.cardId);
+
+    if (isExpanded) {
+      return (
+        <div key={result.cardId} className="smart-card-expanded">
+          <div className="smart-card-expanded-header" onClick={() => toggleCard(result.cardId)}>
+            <RelevanceBadge level={result.relevance} />
+            <span className="smart-card-preview-text">
+              {getFieldPreview(result.card.fields, 80)}
+            </span>
+            {suspended ? (
+              <span className={`smart-card-status ${actioned ? "actioned" : "suspended"}`}>Suspended</span>
+            ) : (
+              <span className={`smart-card-status ${actioned ? "actioned" : "active"}`}>Active</span>
+            )}
+          </div>
+          <div className="smart-card-body">
+            <div className="smart-card-full-text">
+              {getFieldPreview(result.card.fields, 1000)}
+            </div>
+            <div className="smart-card-reason">{result.reason}</div>
+            <div className="smart-card-deck">{result.card.deckName}</div>
+            <div className="smart-card-actions">
+              {suspended ? (
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={(e) => { e.stopPropagation(); handleCardUnsuspend(result.cardId); }}
+                  disabled={busy}
+                >
+                  {busy ? "..." : "Unsuspend"}
+                </button>
+              ) : (
+                <button
+                  className="btn btn-danger btn-sm"
+                  onClick={(e) => { e.stopPropagation(); handleCardSuspend(result.cardId); }}
+                  disabled={busy}
+                >
+                  {busy ? "..." : "Suspend"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div key={result.cardId} className="smart-card-collapsed" onClick={() => toggleCard(result.cardId)}>
+        <RelevanceBadge level={result.relevance} />
+        <span className="smart-card-preview-text">
+          {getFieldPreview(result.card.fields, 80)}
+        </span>
+        {suspended ? (
+          <span className={`smart-card-status ${actioned ? "actioned" : "suspended"}`}>Suspended</span>
+        ) : (
+          <span className={`smart-card-status ${actioned ? "actioned" : "active"}`}>Active</span>
+        )}
+      </div>
+    );
+  };
+
+  const renderGroup = (label: string, groupKey: string, items: SmartSearchResult[]) => {
+    if (items.length === 0) return null;
+    const isCollapsed = collapsedGroups.has(groupKey);
+    return (
+      <div className="smart-results-group">
+        <div className="smart-results-group-header" onClick={() => toggleGroup(groupKey)}>
+          <span className="smart-results-group-title">{label}</span>
+          <span className="smart-results-group-count">({items.length})</span>
+          <span className="smart-results-group-arrow">{isCollapsed ? "\u25B6" : "\u25BC"}</span>
+        </div>
+        {!isCollapsed && items.map(renderCard)}
+      </div>
+    );
+  };
 
   return (
     <div className="results">
@@ -141,12 +277,12 @@ export function SmartResults({ results }: Props) {
             <span className="stat-label">cards matched</span>
           </div>
           <div className="stat">
-            <span className="stat-value">{highCount}</span>
+            <span className="stat-value">{highResults.length}</span>
             <span className="stat-label">high relevance</span>
           </div>
-          {medCount > 0 && (
+          {medResults.length > 0 && (
             <div className="stat">
-              <span className="stat-value">{medCount}</span>
+              <span className="stat-value">{medResults.length}</span>
               <span className="stat-label">medium relevance</span>
             </div>
           )}
@@ -212,25 +348,8 @@ export function SmartResults({ results }: Props) {
       </div>
 
       <div className="results-list">
-        {results.map((result) => (
-          <div key={result.cardId} className="result-card">
-            <div className="result-header">
-              <RelevanceBadge level={result.relevance} />
-              <span className="result-count">
-                {isSuspended(result) ? (
-                  <span className="suspended-badge">Suspended</span>
-                ) : (
-                  <span className="all-active">Active</span>
-                )}
-              </span>
-            </div>
-            <div className="smart-reason">{result.reason}</div>
-            <div className="card-preview-text">
-              {getFieldPreview(result.card.fields)}
-            </div>
-            <div className="card-preview-deck">{result.card.deckName}</div>
-          </div>
-        ))}
+        {renderGroup("High Relevance", "high", highResults)}
+        {renderGroup("Medium Relevance", "medium", medResults)}
       </div>
     </div>
   );

@@ -170,10 +170,6 @@ function App() {
 
   const handleModeSwitch = (newMode: SearchMode) => {
     setMode(newMode);
-    setResults(null);
-    setSmartResults(null);
-    setExplanation(null);
-    setFirstAidConcepts([]);
     setError(null);
     setAtLimit(false);
   };
