@@ -79,9 +79,12 @@ Return ONLY a JSON array of concept objects. No other text.`,
     }
 
     res.json({ concepts, batch: batchIndex });
-  } catch (err) {
-    console.error("Textbook chunking error:", err);
-    res.status(500).json({ error: "Failed to process textbook batch" });
+  } catch (err: any) {
+    console.error("Textbook chunking error:", err?.message || err);
+    const message = err?.status === 413
+      ? "Batch too large — try a smaller PDF or contact support."
+      : err?.message || "Failed to process textbook batch";
+    res.status(500).json({ error: message });
   }
 });
 

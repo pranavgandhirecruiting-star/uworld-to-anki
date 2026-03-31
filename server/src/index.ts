@@ -34,7 +34,7 @@ app.use((req, res, next) => {
   if (req.path === "/billing/webhook") {
     next();
   } else {
-    express.json()(req, res, next);
+    express.json({ limit: "5mb" })(req, res, next);
   }
 });
 
